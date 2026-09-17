@@ -1103,6 +1103,9 @@ img, video, canvas, svg, iframe, embed, object {
   cursor: pointer;
   gap: 12px;
   user-select: none;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .crop-plot-info {
@@ -1240,6 +1243,10 @@ img, video, canvas, svg, iframe, embed, object {
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.9);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .timeline-step-badge {
@@ -1299,6 +1306,9 @@ img, video, canvas, svg, iframe, embed, object {
   border: 1px solid rgba(56, 161, 105, 0.2);
   padding: 3px 8px;
   border-radius: 6px;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .yield-diff {
