@@ -74,8 +74,7 @@ export const PlotCard: React.FC<PlotCardProps> = ({ plot, onQuickDiagnose, onEdi
           </div>
         </div>
         <p className="plot-meta mt-2">
-          <strong>{t('area_label')}</strong> {plot.area_acres} {t('unit_acre')} · <strong>{t('soil_label')}</strong> {plot.soil_type}<br />
-          <strong>{t('baseline_npk')}</strong> {plot.baseline_N}-{plot.baseline_P}-{plot.baseline_K} kg/ha
+          <strong>{t('area_label')}</strong> {plot.area_acres} {t('unit_acre')} · <strong>{t('soil_label')}</strong> {plot.soil_type}
         </p>
         <div className="plot-stats-row mt-2">
           <span className="plot-stat-chip">📊 {plot.total_diagnoses} {t('analyses_count')}</span>
@@ -90,9 +89,9 @@ export const PlotCard: React.FC<PlotCardProps> = ({ plot, onQuickDiagnose, onEdi
                 <span
                   key={a.id || idx}
                   className={`plot-mini-chip ${a.is_healthy ? 'chip-healthy' : 'chip-disease'}`}
-                  title={`${a.disease_name} (${a.confidence}% conf, ${a.predicted_yield_t_ha} t/ha)`}
+                  title={`${a.disease_name} (${a.confidence}% conf, ${(a.predicted_yield_t_ha * 4.047).toFixed(1)} Quintal / Acre)`}
                 >
-                  #{idx + 1} {a.is_healthy ? '✅' : '🦠'} {a.predicted_yield_t_ha} t/ha
+                  #{idx + 1} {a.is_healthy ? '✅' : '🦠'} {(a.predicted_yield_t_ha * 4.047).toFixed(1)} Quintal / Acre
                 </span>
               ))}
             </div>

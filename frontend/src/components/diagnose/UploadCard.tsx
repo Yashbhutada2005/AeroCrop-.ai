@@ -8,9 +8,10 @@ interface UploadCardProps {
 }
 
 export const UploadCard: React.FC<UploadCardProps> = ({ selectedFile, onFileSelect }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -53,6 +54,10 @@ export const UploadCard: React.FC<UploadCardProps> = ({ selectedFile, onFileSele
     fileInputRef.current?.click();
   };
 
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0]);
@@ -93,26 +98,54 @@ export const UploadCard: React.FC<UploadCardProps> = ({ selectedFile, onFileSele
             <div className="upload-icon" aria-hidden="true">🍃</div>
             <p className="upload-text">{t('upload_text')}</p>
             <p className="upload-hint">{t('upload_hint')}</p>
-            <span className="upload-formats">JPG, PNG — max 10 MB</span>
+            <span className="upload-formats">JPG, PNG, WebP — max 10 MB</span>
           </div>
         )}
       </div>
 
+      {/* Hidden File Picker Input */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png"
+        accept="image/jpeg,image/png,image/webp"
         className="file-input-hidden"
         onChange={handleFileChange}
       />
 
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm mt-2"
-        onClick={handleBrowseClick}
-      >
-        {selectedFile ? 'Change File' : t('browse_file')}
-      </button>
+      {/* Hidden Native Camera Direct Capture Input */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="file-input-hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Action Buttons: Camera + File Gallery */}
+      <div className="upload-actions-row mt-2" style={{ display: 'flex', gap: '8px' }}>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          onClick={handleCameraClick}
+          title="Capture photo using device camera"
+        >
+          <span>📸</span>
+          <span>{language === 'mr' ? 'कॅमेरा उघडा' : language === 'hi' ? 'कैमरा खोलें' : 'Take Photo'}</span>
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          onClick={handleBrowseClick}
+          title="Select photo from file gallery"
+        >
+          <span>📁</span>
+          <span>{selectedFile ? (language === 'mr' ? 'फोटो बदला' : language === 'hi' ? 'फोटो बदलें' : 'Change') : t('browse_file')}</span>
+        </button>
+      </div>
     </div>
   );
 };

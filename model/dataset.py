@@ -4,21 +4,19 @@ AeroCrop.ai  PyTorch Dataset Classes (Model Layer)
 Two dataset implementations:
 
 1. PlantDiseaseDataset
-   - Source: New Plant Diseases Dataset (Augmented)  87,900 images, 38 classes
+   - Source: Multi-Source Agricultural Pathology Dataset — 166,630 images, 134 classes across 11 crops
    - Root dir expected structure: train/<ClassName>/<image.jpg>
    - Returns: (image_tensor [3,224,224], class_index)
 
 2. YieldDataset
-   - Source: yield_df.csv  merged FAO yield + weather data
-   - Columns: Area, Item, Year, hg/ha_yield, average_rain_fall_mm_per_year,
-              pesticides_tonnes, avg_temp
-   - Filters to crops matching CROP_NPK_TARGETS
-   - Returns: (feature_tensor [7], yield_t_ha)
+   - Source: crop_yield.csv or yield_df.csv
+   - Columns: avg_temp, est_humidity, rain_mm_day, yield_t_ha
+   - Returns: (weather_tensor [3], yield_t_ha)
 
 3. MultiModalDataset  (used for joint training)
-   - Pairs each disease image with a randomly sampled tabular row
+   - Pairs each disease image with a randomly sampled tabular weather row
      from the same crop category.
-   - Returns: (image_tensor, tabular_tensor [6], disease_label, yield_t_ha)
+   - Returns: (image_tensor, weather_tensor [3], disease_label, yield_t_ha)
 """
 
 from __future__ import annotations
@@ -32,73 +30,33 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torchvision import transforms
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
-#  Folder name  class index mapping (alphabetical, matches PlantVillage) 
-DISEASE_CLASSES: list[str] = [
-    "Apple___Apple_scab",                                         # 0
-    "Apple___Black_rot",                                          # 1
-    "Apple___Cedar_apple_rust",                                   # 2
-    "Apple___healthy",                                            # 3
-    "Blueberry___healthy",                                        # 4
-    "Cherry_(including_sour)___healthy",                          # 5
-    "Cherry_(including_sour)___Powdery_mildew",                   # 6
-    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",         # 7
-    "Corn_(maize)___Common_rust_",                                # 8
-    "Corn_(maize)___healthy",                                     # 9
-    "Corn_(maize)___Northern_Leaf_Blight",                        # 10
-    "Grape___Black_rot",                                          # 11
-    "Grape___Esca_(Black_Measles)",                               # 12
-    "Grape___healthy",                                            # 13
-    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",                 # 14
-    "Orange___Haunglongbing_(Citrus_greening)",                   # 15
-    "Peach___Bacterial_spot",                                     # 16
-    "Peach___healthy",                                            # 17
-    "Pepper,_bell___Bacterial_spot",                              # 18
-    "Pepper,_bell___healthy",                                     # 19
-    "Potato___Early_blight",                                      # 20
-    "Potato___healthy",                                           # 21
-    "Potato___Late_blight",                                       # 22
-    "Raspberry___healthy",                                        # 23
-    "Soybean___healthy",                                          # 24
-    "Squash___Powdery_mildew",                                    # 25
-    "Strawberry___healthy",                                       # 26
-    "Strawberry___Leaf_scorch",                                   # 27
-    "Tomato___Bacterial_spot",                                    # 28
-    "Tomato___Early_blight",                                      # 29
-    "Tomato___healthy",                                           # 30
-    "Tomato___Late_blight",                                       # 31
-    "Tomato___Leaf_Mold",                                         # 32
-    "Tomato___Septoria_leaf_spot",                                # 33
-    "Tomato___Spider_mites Two-spotted_spider_mite",              # 34
-    "Tomato___Target_Spot",                                       # 35
-    "Tomato___Tomato_mosaic_virus",                               # 36
-    "Tomato___Tomato_Yellow_Leaf_Curl_Virus",                     # 37
-    # ── Maharashtra Cash & Field Crops Expansion (Classes 38-55) ──
-    "Cotton___Bacterial_blight",                                  # 38
-    "Cotton___healthy",                                           # 39
-    "Banana___Cordana_leaf_spot",                                 # 40
-    "Banana___Panama_disease",                                    # 41
-    "Banana___Sigatoka",                                          # 42
-    "Banana___healthy",                                           # 43
-    "Sugarcane___Mosaic",                                         # 44
-    "Sugarcane___Red_rot",                                        # 45
-    "Sugarcane___Rust",                                           # 46
-    "Sugarcane___Yellow_leaf",                                    # 47
-    "Sugarcane___healthy",                                        # 48
-    "Rice___Bacterial_leaf_blight",                               # 49
-    "Rice___Brown_spot",                                          # 50
-    "Rice___Leaf_smut",                                           # 51
-    "Turmeric___Dry_leaf",                                        # 52
-    "Turmeric___Leaf_blotch",                                     # 53
-    "Turmeric___Rhizome_rot",                                     # 54
-    "Turmeric___healthy",                                         # 55
-]
+# Load authoritative class taxonomy (matches model/classes.json and 134-class dataset)
+def _load_classes() -> list[str]:
+    classes_path = os.path.join(config.MODEL_DIR, "classes.json")
+    if os.path.exists(classes_path):
+        try:
+            import json
+            with open(classes_path, "r", encoding="utf-8") as f:
+                cl = json.load(f)
+                if len(cl) > 0:
+                    return cl
+        except Exception:
+            pass
+    train_dir = os.path.join(config.DATA_DIR, "main dataset", "train")
+    if os.path.exists(train_dir):
+        subdirs = sorted([d for d in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, d))])
+        if len(subdirs) > 0:
+            return subdirs
+    return []
 
+DISEASE_CLASSES: list[str] = _load_classes()
 CLASS_TO_IDX: dict[str, int] = {c: i for i, c in enumerate(DISEASE_CLASSES)}
 
 #  Crop name mapping: PlantVillage folder prefix  yield crop name 
@@ -191,17 +149,8 @@ class PlantDiseaseDataset(Dataset):
             self.classes = list(classes)
             self.class_to_idx = {c: i for i, c in enumerate(self.classes)}
         else:
-            folder_dirs = sorted([d.name for d in self.root_dir.iterdir() if d.is_dir()])
-            unknown_folders = [
-                f for f in folder_dirs
-                if f not in CLASS_TO_IDX and f.replace(" ", "_") not in CLASS_TO_IDX
-            ]
-            if not unknown_folders and len(folder_dirs) == len(DISEASE_CLASSES):
-                self.classes = list(DISEASE_CLASSES)
-                self.class_to_idx = dict(CLASS_TO_IDX)
-            else:
-                self.classes = folder_dirs
-                self.class_to_idx = {c: i for i, c in enumerate(self.classes)}
+            self.classes = list(DISEASE_CLASSES)
+            self.class_to_idx = dict(CLASS_TO_IDX)
 
         self.samples: list[tuple[Path, int]] = []
 
@@ -248,16 +197,27 @@ class PlantDiseaseDataset(Dataset):
 #   2. YieldDataset                                                         
 # 
 
-# Crop names in yield_df.csv -> our internal keys
+# Crop names in yield_df.csv / crop_yield.csv -> our internal keys
 YIELD_CROP_MAP: dict[str, str] = {
     "Maize":          "maize",
     "Potatoes":       "potato",
+    "Potato":         "potato",
+    "Sweet potatoes": "potato",
+    "Sweet potato":   "potato",
     "Rice, paddy":    "rice",
+    "Rice":           "rice",
     "Wheat":          "wheat",
     "Cotton":         "cotton",
+    "Cotton(lint)":   "cotton",
+    "Sugarcane":      "sugarcane",
+    "Banana":         "banana",
+    "Onion":          "onion",
     "Soybeans":       "soybean",
     "Soybean":        "soybean",
-    "Sweet potatoes": "potato",
+    "Soyabean":       "soybean",
+    "Dry chillies":   "pepper",
+    "Black pepper":   "pepper",
+    "Turmeric":       "turmeric",
     "Cassava":        "potato",
     "Sorghum":        "maize",
 }
@@ -265,18 +225,16 @@ YIELD_CROP_MAP: dict[str, str] = {
 
 class YieldDataset(Dataset):
     """
-    Tabular dataset for yield regression from yield_df.csv.
+    Tabular dataset for yield regression supporting both:
+    1. Modern Indian Agricultural Dataset (crop_yield.csv) with real Indian crops
+       and seasonal weather telemetry.
+    2. Legacy FAO yield_df.csv.
 
-    Features (6 after selecting relevant columns):
-        N, P, K — imputed from ICAR targets (no per-sample soil data)
-        avg_temp, average_rain_fall_mm_per_year, pesticides_tonnes
+    Features (3 weather telemetry inputs):
+        avg_temp, est_humidity, rain_mm_day
 
     Target:
-        hg/ha_yield converted to t/ha (divide by 10000)
-
-    Returns per item:
-        features : FloatTensor (6,)   normalised [N, P, K, temp, rain, pest]
-        yield    : FloatTensor (1,)   tons per hectare
+        yield_t_ha — crop yield in metric tonnes per hectare
     """
 
     def __init__(self, csv_path: str, split: str = "train", val_fraction: float = 0.15):
@@ -287,74 +245,79 @@ class YieldDataset(Dataset):
         if df.columns[0] == "" or df.columns[0].startswith("Unnamed"):
             df = df.iloc[:, 1:]   # drop unnamed index column
 
-        # Map crop names
-        df["crop_key"] = df["Item"].map(YIELD_CROP_MAP)
-        df = df.dropna(subset=["crop_key"])
+        # Check if pre-processed Indian Agricultural Dataset (crop_yield.csv)
+        if "crop_key" in df.columns and "yield_t_ha" in df.columns and "avg_temp" in df.columns:
+            required = ["crop_key", "avg_temp", "est_humidity", "rain_mm_day", "yield_t_ha"]
+            for num_col in ["avg_temp", "est_humidity", "rain_mm_day", "yield_t_ha"]:
+                df[num_col] = pd.to_numeric(df[num_col], errors="coerce")
+            df = df.dropna(subset=required).copy()
+        else:
+            # Map crop names
+            item_col = "Crop" if "Crop" in df.columns else "Item"
+            df["crop_key"] = df[item_col].map(YIELD_CROP_MAP)
+            df = df.dropna(subset=["crop_key"]).copy()
 
-        # Drop rows with missing weather values
-        required = ["avg_temp", "average_rain_fall_mm_per_year", "hg/ha_yield"]
-        df = df.dropna(subset=required)
+            # Drop rows with missing weather values
+            required = ["avg_temp", "average_rain_fall_mm_per_year", "hg/ha_yield"]
+            df = df.dropna(subset=required).copy()
 
-        # Convert yield to t/ha
-        df["yield_t_ha"] = df["hg/ha_yield"] / 10_000.0
+            # Convert yield to t/ha
+            df["yield_t_ha"] = df["hg/ha_yield"] / 10_000.0
 
-        # Handle pesticides (some rows may be NaN)
-        df["pesticides_tonnes"] = df["pesticides_tonnes"].fillna(0.0)
+            # Handle pesticides (some rows may be NaN)
+            if "pesticides_tonnes" in df.columns:
+                df["pesticides_tonnes"] = df["pesticides_tonnes"].fillna(0.0)
 
-        # Add imputed NPK from ICAR targets (per crop key)
-        targets = config.CROP_NPK_TARGETS
-        default_npk = {"N": 110.0, "P": 60.0, "K": 50.0}
-        df["N"] = df["crop_key"].apply(lambda c: targets.get(c, default_npk)["N"])
-        df["P"] = df["crop_key"].apply(lambda c: targets.get(c, default_npk)["P"])
-        df["K"] = df["crop_key"].apply(lambda c: targets.get(c, default_npk)["K"])
+            # ── Horticultural & Specialty Crops Agronomic Calibration ─────────────
+            horticultural_baselines = {
+                "tomato":     {"base": 32.0, "opt_temp": 26.0, "opt_rain": 4.0},
+                "apple":      {"base": 22.0, "opt_temp": 20.0, "opt_rain": 3.5},
+                "grape":      {"base": 20.0, "opt_temp": 25.0, "opt_rain": 2.5},
+                "orange":     {"base": 24.0, "opt_temp": 28.0, "opt_rain": 3.0},
+                "pepper":     {"base": 18.0, "opt_temp": 26.0, "opt_rain": 3.0},
+                "peach":      {"base": 16.0, "opt_temp": 22.0, "opt_rain": 3.0},
+                "strawberry": {"base": 16.0, "opt_temp": 22.0, "opt_rain": 3.5},
+                "cherry":     {"base": 12.0, "opt_temp": 20.0, "opt_rain": 3.0},
+                "blueberry":  {"base": 9.0,  "opt_temp": 21.0, "opt_rain": 3.0},
+                "raspberry":  {"base": 8.0,  "opt_temp": 20.0, "opt_rain": 3.0},
+                "squash":     {"base": 22.0, "opt_temp": 27.0, "opt_rain": 3.5},
+                "banana":     {"base": 52.0, "opt_temp": 28.0, "opt_rain": 5.0},
+                "sugarcane":  {"base": 92.0, "opt_temp": 30.0, "opt_rain": 6.0},
+                "turmeric":   {"base": 26.0, "opt_temp": 27.0, "opt_rain": 4.5},
+                "maize":      {"base": 6.2,  "opt_temp": 28.0, "opt_rain": 4.5},
+                "cotton":     {"base": 2.8,  "opt_temp": 30.0, "opt_rain": 3.5},
+            }
 
-        # ── Horticultural & Specialty Crops Agronomic Calibration ─────────────
-        # Synthesize microclimate-conditioned distributions for crops present in
-        # PlantVillage but not in FAO field crop tables.
-        horticultural_baselines = {
-            "tomato":     {"base": 32.0, "opt_temp": 26.0, "opt_rain": 4.0},
-            "apple":      {"base": 22.0, "opt_temp": 20.0, "opt_rain": 3.5},
-            "grape":      {"base": 20.0, "opt_temp": 25.0, "opt_rain": 2.5},
-            "orange":     {"base": 24.0, "opt_temp": 28.0, "opt_rain": 3.0},
-            "pepper":     {"base": 18.0, "opt_temp": 26.0, "opt_rain": 3.0},
-            "peach":      {"base": 16.0, "opt_temp": 22.0, "opt_rain": 3.0},
-            "strawberry": {"base": 16.0, "opt_temp": 22.0, "opt_rain": 3.5},
-            "cherry":     {"base": 12.0, "opt_temp": 20.0, "opt_rain": 3.0},
-            "blueberry":  {"base": 9.0,  "opt_temp": 21.0, "opt_rain": 3.0},
-            "raspberry":  {"base": 8.0,  "opt_temp": 20.0, "opt_rain": 3.0},
-            "squash":     {"base": 22.0, "opt_temp": 27.0, "opt_rain": 3.5},
-            "banana":     {"base": 52.0, "opt_temp": 28.0, "opt_rain": 5.0},
-            "sugarcane":  {"base": 92.0, "opt_temp": 30.0, "opt_rain": 6.0},
-            "turmeric":   {"base": 26.0, "opt_temp": 27.0, "opt_rain": 4.5},
-            "maize":      {"base": 6.2,  "opt_temp": 28.0, "opt_rain": 4.5},
-            "cotton":     {"base": 2.8,  "opt_temp": 30.0, "opt_rain": 3.5},
-        }
+            synthetic_rows = []
+            for h_crop, h_cfg in horticultural_baselines.items():
+                sample_w = df[["avg_temp", "average_rain_fall_mm_per_year"]].sample(
+                    n=min(len(df), 600),
+                    random_state=42 + abs(hash(h_crop)) % 10000,
+                    replace=True,
+                ).copy()
+                sample_w["crop_key"] = h_crop
+                rain_daily = sample_w["average_rain_fall_mm_per_year"] / 365.0
+                temp_eff = 1.0 - np.abs(sample_w["avg_temp"] - h_cfg["opt_temp"]) * 0.015
+                rain_eff = 1.0 - np.abs(rain_daily - h_cfg["opt_rain"]) * 0.025
+                mod = np.clip(temp_eff * rain_eff, 0.65, 1.35)
+                rng = np.random.default_rng(abs(hash(h_crop)) % 10000)
+                noise = rng.normal(0.0, 0.06, size=len(sample_w))
+                sample_w["yield_t_ha"] = np.clip(h_cfg["base"] * (mod + noise), 1.0, 130.0)
+                if "pesticides_tonnes" in df.columns:
+                    sample_w["pesticides_tonnes"] = 0.0
 
-        synthetic_rows = []
-        for h_crop, h_cfg in horticultural_baselines.items():
-            sample_w = df[["avg_temp", "average_rain_fall_mm_per_year"]].sample(
-                n=min(len(df), 600),
-                random_state=42 + abs(hash(h_crop)) % 10000,
-                replace=True,
-            ).copy()
-            sample_w["crop_key"] = h_crop
-            rain_daily = sample_w["average_rain_fall_mm_per_year"] / 365.0
-            temp_eff = 1.0 - np.abs(sample_w["avg_temp"] - h_cfg["opt_temp"]) * 0.015
-            rain_eff = 1.0 - np.abs(rain_daily - h_cfg["opt_rain"]) * 0.025
-            mod = np.clip(temp_eff * rain_eff, 0.65, 1.35)
-            rng = np.random.default_rng(abs(hash(h_crop)) % 10000)
-            noise = rng.normal(0.0, 0.06, size=len(sample_w))
-            sample_w["yield_t_ha"] = np.clip(h_cfg["base"] * (mod + noise), 1.0, 130.0)
-            sample_w["pesticides_tonnes"] = 0.0
+                synthetic_rows.append(sample_w)
 
-            c_target = targets.get(h_crop, default_npk)
-            sample_w["N"] = float(c_target["N"])
-            sample_w["P"] = float(c_target["P"])
-            sample_w["K"] = float(c_target["K"])
-            synthetic_rows.append(sample_w)
+            if synthetic_rows:
+                df = pd.concat([df] + synthetic_rows, ignore_index=True)
 
-        if synthetic_rows:
-            df = pd.concat([df] + synthetic_rows, ignore_index=True)
+            # Convert annual rainfall to daily mm so it shares scale with live rainfall
+            df["rain_mm_day"] = df["average_rain_fall_mm_per_year"] / 365.0
+
+            # Estimate relative humidity (%) from rainfall and temperature proxy, bounded [30, 95]
+            rain_factor = np.clip(df["rain_mm_day"] * 4.0, 0, 30)
+            temp_factor = np.clip((35 - df["avg_temp"]) * 0.8, -10, 15)
+            df["est_humidity"] = np.clip(55.0 + rain_factor + temp_factor, 30.0, 95.0)
 
         # ── Train / Val split ────────────────────────────────────────────────
         df = df.sample(frac=1.0, random_state=42).reset_index(drop=True)
@@ -364,32 +327,13 @@ class YieldDataset(Dataset):
         else:
             df = df.iloc[n_val:]
 
-        # ── Feature normalisation ──────────────────────────────────────────
-        # All 6 features align 1-to-1 with live inference (model/inference.py):
-        #   0: N           (kg/ha)
-        #   1: P           (kg/ha)
-        #   2: K           (kg/ha)
-        #   3: temperature (°C)
-        #   4: humidity    (estimated relative humidity %)
-        #   5: rainfall    (daily mm equivalent)
+        # ── Feature normalisation (Weather only: temp, humidity, rainfall) ──
         norm = config.TABULAR_NORM
 
         def z(col, key):
             return (df[col] - norm[key]["mean"]) / norm[key]["std"]
 
-        # Convert annual rainfall to daily mm so it shares scale with live rainfall
-        df["rain_mm_day"] = df["average_rain_fall_mm_per_year"] / 365.0
-
-        # Estimate relative humidity (%) from rainfall and temperature proxy, bounded [30, 95]
-        # In agronomic physics, higher rainfall and moderate temps correlate with higher humidity
-        rain_factor = np.clip(df["rain_mm_day"] * 4.0, 0, 30)
-        temp_factor = np.clip((35 - df["avg_temp"]) * 0.8, -10, 15)
-        df["est_humidity"] = np.clip(55.0 + rain_factor + temp_factor, 30.0, 95.0)
-
         self.features = np.stack([
-            z("N",            "N").values,
-            z("P",            "P").values,
-            z("K",            "K").values,
             z("avg_temp",     "temperature").values,
             z("est_humidity", "humidity").values,
             z("rain_mm_day",  "rainfall").values,
@@ -399,7 +343,7 @@ class YieldDataset(Dataset):
         self.crops  = df["crop_key"].values
 
         print(f"  [YieldDataset] {split}: {len(self.features)} rows | yield range: "
-              f"{self.labels.min():.2f}{self.labels.max():.2f} t/ha")
+              f"{self.labels.min():.2f}–{self.labels.max():.2f} t/ha")
 
     def __len__(self) -> int:
         return len(self.features)
@@ -410,18 +354,18 @@ class YieldDataset(Dataset):
         return feat, label
 
 
-# 
+# ─────────────────────────────────────────────────────────────────────────────
 #   3. MultiModalDataset  (joint training)                                  
-# 
+# ─────────────────────────────────────────────────────────────────────────────
 
 class MultiModalDataset(Dataset):
     """
-    Pairs each disease image with a tabular yield row from the same crop.
+    Pairs each disease image with a tabular weather row from the same crop.
     Used for multi-task training of MultiModalAeroCropNet.
 
     Returns per item:
         image        : FloatTensor (3, 224, 224)
-        tabular      : FloatTensor (6,)
+        tabular      : FloatTensor (3,)  # [temperature, humidity, rainfall]
         disease_label: int
         yield_t_ha   : FloatTensor (1,)
     """
@@ -435,10 +379,11 @@ class MultiModalDataset(Dataset):
         max_per_class: int | None = None,
         classes: list[str] | None = None,
     ):
+        self.split         = split
         self.img_dataset   = PlantDiseaseDataset(image_root, transform=transform, max_per_class=max_per_class, classes=classes)
         self.yield_dataset = YieldDataset(yield_csv, split=split)
 
-        # Build crop  [tabular_indices] lookup
+        # Build crop -> [tabular_indices] lookup
         self._build_crop_index()
 
     @property
@@ -456,11 +401,12 @@ class MultiModalDataset(Dataset):
             self.crop_idx.setdefault(crop, []).append(i)
 
         # Build image-level crop key (from folder name prefix)
+        folder_lower_to_crop = {k.lower(): v for k, v in FOLDER_TO_CROP.items()}
         self.img_crops: list[str] = []
         for img_path, _ in self.img_dataset.samples:
             folder  = img_path.parent.name
             prefix  = folder.split("___")[0]
-            crop_key = FOLDER_TO_CROP.get(prefix, "maize")  # default fallback
+            crop_key = FOLDER_TO_CROP.get(prefix) or folder_lower_to_crop.get(prefix.lower(), "maize")
             self.img_crops.append(crop_key)
 
     def __len__(self) -> int:
@@ -473,10 +419,11 @@ class MultiModalDataset(Dataset):
         crop_key = self.img_crops[idx]
         candidates = self.crop_idx.get(crop_key)
         if not candidates:
-            # Fallback: random row
-            row_idx = random.randint(0, len(self.yield_dataset) - 1)
+            # Fallback
+            row_idx = (idx % len(self.yield_dataset)) if self.split == "val" else random.randint(0, len(self.yield_dataset) - 1)
         else:
-            row_idx = random.choice(candidates)
+            # Deterministic pairing for validation to guarantee reproducible evaluation metrics across epochs
+            row_idx = candidates[idx % len(candidates)] if self.split == "val" else random.choice(candidates)
 
         tabular, yield_t_ha = self.yield_dataset[row_idx]
 

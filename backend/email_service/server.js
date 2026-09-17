@@ -66,7 +66,6 @@ app.post('/send-email', async (req, res) => {
             crop          = 'Crop',
             district      = '',
             disease       = {},
-            fertilizer    = {},
             yield_t_ha,
             weather       = {},
             pdfBase64,
@@ -104,7 +103,6 @@ app.post('/send-email', async (req, res) => {
                 district,
                 crop,
                 disease,
-                fertilizer,
                 yield_t_ha,
                 weather,
             };

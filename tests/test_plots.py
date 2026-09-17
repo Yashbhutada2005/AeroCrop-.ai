@@ -61,9 +61,6 @@ class TestPlotManagement:
                 "crop_type": "cotton",
                 "area_acres": 4.5,
                 "soil_type": "Deep Black",
-                "baseline_N": 60,
-                "baseline_P": 30,
-                "baseline_K": 30,
             },
         )
         assert p1.status_code == 201

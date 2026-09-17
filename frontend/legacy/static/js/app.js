@@ -6,7 +6,6 @@
  *  - Multi-crop & farm plot management (CRUD operations, quick-diagnosis linking)
  *  - Multi-modal leaf diagnosis and yield forecasting
  *  - Persistent server-synced diagnosis history with image thumbnails
- *  - Interactive Chart.js NPK visualization
  *  - Comprehensive multilingual support (EN / मराठी / हिंदी)
  *  - Advisory report export & printing
  */
@@ -22,20 +21,18 @@ const I18N = {
     nav_dashboard: 'Dashboard',   nav_diseases: 'Disease DB',   nav_about: 'About',
     btn_login_register: 'Farmer Sign In',
     diagnose_title: 'Crop Disease Diagnostics',
-    diagnose_subtitle: 'Upload a leaf image to diagnose diseases, get fertilizer recommendations, and forecast your yield.',
+    diagnose_subtitle: 'Upload a leaf image to diagnose diseases, get agronomic treatments, and forecast your yield.',
     weather_temp: 'Temp',         weather_hum: 'Humidity',    weather_rain: 'Rainfall',
     leaf_image: 'Leaf Image',     upload_text: 'Drag & drop leaf photo', upload_hint: 'or click to browse',
-    browse_file: 'Browse File',   params_title: 'Crop & Soil Parameters',
+    browse_file: 'Browse File',   params_title: 'Crop & Location Parameters',
     link_plot: 'Link to My Farm Plot', optional: 'Optional',
     crop_type: 'Crop Type',       district_label: 'Maharashtra District',
-    nitrogen: 'Nitrogen (N)',     phosphorus: 'Phosphorus (P)', potassium: 'Potassium (K)',
     analyze_btn: 'Analyze Crop',
     detected_disease: 'Detected Disease', confidence: 'Confidence',
     predicted_yield: 'Predicted Yield',   severity: 'Severity',
     treatment_title: 'Treatment Prescription', chemical_treatments: 'Chemical Treatments',
-    organic_treatments: 'Organic / Bio Treatments', fertilizer_title: 'Fertilizer Dosage',
+    organic_treatments: 'Organic / Bio Treatments',
     print_report: 'Print / Save Report',
-    npk_chart_title: 'Soil Nutrient Analysis — Current vs Target',
     my_crops_title: 'My Crops & Farm Plots',
     my_crops_subtitle: 'Manage your multiple agricultural fields, track acreages, and run quick diagnoses per plot.',
     add_plot_btn: 'Add New Crop Plot',
@@ -63,20 +60,18 @@ const I18N = {
     nav_dashboard: 'डॅशबोर्ड',     nav_diseases: 'रोग DB',        nav_about: 'बद्दल',
     btn_login_register: 'शेतकरी लॉगिन',
     diagnose_title: 'पीक रोग निदान',
-    diagnose_subtitle: 'पानाचा फोटो अपलोड करा, रोग शोधा, खत शिफारस मिळवा आणि उत्पन्नाचा अंदाज घ्या.',
+    diagnose_subtitle: 'पानाचा फोटो अपलोड करा, रोग शोधा, उपचार मिळवा आणि उत्पन्नाचा अंदाज घ्या.',
     weather_temp: 'तापमान',        weather_hum: 'आर्द्रता',    weather_rain: 'पाऊस',
     leaf_image: 'पानाचा फोटो',    upload_text: 'पानाचा फोटो ड्रॅग करा', upload_hint: 'किंवा ब्राउझ करा',
-    browse_file: 'फाइल निवडा',    params_title: 'पीक आणि माती माहिती',
+    browse_file: 'फाइल निवडा',    params_title: 'पीक आणि शेत माहिती',
     link_plot: 'माझ्या शेताशी जोडा', optional: 'ऐच्छिक',
     crop_type: 'पीक प्रकार',       district_label: 'महाराष्ट्र जिल्हा',
-    nitrogen: 'नत्र (N)',          phosphorus: 'स्फुरद (P)',   potassium: 'पालाश (K)',
     analyze_btn: 'विश्लेषण करा',
     detected_disease: 'आढळलेला रोग', confidence: 'आत्मविश्वास',
     predicted_yield: 'अपेक्षित उत्पन्न', severity: 'तीव्रता',
     treatment_title: 'उपचार शिफारस', chemical_treatments: 'रासायनिक उपचार',
-    organic_treatments: 'सेंद्रिय उपचार', fertilizer_title: 'खत मात्रा',
+    organic_treatments: 'सेंद्रिय उपचार',
     print_report: 'अहवाल प्रिंट / सेव्ह करा',
-    npk_chart_title: 'माती पोषण विश्लेषण — सध्याचे vs लक्ष्य',
     my_crops_title: 'माझी पिके आणि शेती प्लॉट्स',
     my_crops_subtitle: 'तुमची विविध पिके आणि क्षेत्र व्यवस्थापित करा व थेट निदान करा.',
     add_plot_btn: 'नवीन पीक प्लॉट जोडा',
@@ -104,20 +99,18 @@ const I18N = {
     nav_dashboard: 'डैशबोर्ड',     nav_diseases: 'रोग DB',        nav_about: 'बारे में',
     btn_login_register: 'किसान साइन इन',
     diagnose_title: 'फसल रोग निदान',
-    diagnose_subtitle: 'पत्ती का फोटो अपलोड करें, रोग पहचानें, खाद की सिफारिश और उपज पूर्वानुमान पाएं।',
+    diagnose_subtitle: 'पत्ती का फोटो अपलोड करें, रोग पहचानें, उपचार सिफारिश और उपज पूर्वानुमान पाएं।',
     weather_temp: 'तापमान',        weather_hum: 'आर्द्रता',    weather_rain: 'वर्षा',
     leaf_image: 'पत्ती का फोटो',  upload_text: 'पत्ती का फोटो यहाँ खींचें', upload_hint: 'या ब्राउज़ करें',
-    browse_file: 'फ़ाइल चुनें',   params_title: 'फसल और मृदा मापदंड',
+    browse_file: 'फ़ाइल चुनें',   params_title: 'फसल और खेत मापदंड',
     link_plot: 'अपने खेत से जोड़ें', optional: 'वैकल्पिक',
     crop_type: 'फसल का प्रकार',   district_label: 'महाराष्ट्र जिला',
-    nitrogen: 'नाइट्रोजन (N)',     phosphorus: 'फॉस्फोरस (P)', potassium: 'पोटैशियम (K)',
     analyze_btn: 'विश्लेषण करें',
     detected_disease: 'पहचाना गया रोग', confidence: 'आत्मविश्वास',
     predicted_yield: 'अनुमानित उपज', severity: 'गंभीरता',
     treatment_title: 'उपचार सिफारिश', chemical_treatments: 'रासायनिक उपचार',
-    organic_treatments: 'जैविक उपचार', fertilizer_title: 'उर्वरक मात्रा',
+    organic_treatments: 'जैविक उपचार',
     print_report: 'रिपोर्ट प्रिंट / सेव करें',
-    npk_chart_title: 'मृदा पोषण विश्लेषण — वर्तमान बनाम लक्ष्य',
     my_crops_title: 'मेरी फसलें और खेत',
     my_crops_subtitle: 'अपनी विभिन्न फसलों और खेतों का प्रबंधन करें।',
     add_plot_btn: 'नया खेत जोड़ें',
@@ -167,7 +160,6 @@ const state = {
   userPlots:       [],
   uploadedFile:    null,
   weatherCache:    {},
-  npkChart:        null,
   isLoading:       false,
   lastResult:      null,
   dashboardLoaded: false,
@@ -202,9 +194,6 @@ const els = {
   plotSelect:        $('plot-select'),
   cropSelect:        $('crop-select'),
   districtSelect:    $('district-select'),
-  inputN:            $('input-N'),
-  inputP:            $('input-P'),
-  inputK:            $('input-K'),
   resultsArea:       $('results-area'),
   mockBanner:        $('mock-banner'),
   lowConfBanner:     $('low-conf-banner'),
@@ -442,8 +431,7 @@ function renderPlotsGrid(plots) {
             <span class="plot-crop-badge">${icon} ${p.crop_type.toUpperCase()}</span>
           </div>
           <p class="plot-meta mt-2">
-            <strong>Area:</strong> ${p.area_acres} Acres · <strong>Soil:</strong> ${p.soil_type}<br>
-            <strong>Baseline NPK:</strong> ${p.baseline_N}-${p.baseline_P}-${p.baseline_K} kg/ha
+            <strong>Area:</strong> ${p.area_acres} Acres · <strong>Soil:</strong> ${p.soil_type}
           </p>
           <div class="plot-stats-row mt-2">
             <span class="plot-stat-chip">📊 ${p.total_diagnoses} Analyses</span>
@@ -482,9 +470,6 @@ function initPlotSelectorSync() {
     if (plot) {
       // Sync crop
       els.cropSelect.value = plot.crop_type;
-      if (els.inputN && plot.baseline_N != null) els.inputN.value = plot.baseline_N;
-      if (els.inputP && plot.baseline_P != null) els.inputP.value = plot.baseline_P;
-      if (els.inputK && plot.baseline_K != null) els.inputK.value = plot.baseline_K;
       showToast(`Linked to ${plot.plot_name} (${plot.crop_type})`, 'info');
     }
   });
@@ -496,9 +481,6 @@ window.quickDiagnoseOnPlot = function(plotId) {
   const plot = state.userPlots.find(p => p.id === plotId);
   if (plot) {
     els.cropSelect.value = plot.crop_type;
-    if (els.inputN && plot.baseline_N != null) els.inputN.value = plot.baseline_N;
-    if (els.inputP && plot.baseline_P != null) els.inputP.value = plot.baseline_P;
-    if (els.inputK && plot.baseline_K != null) els.inputK.value = plot.baseline_K;
   }
   els.uploadZone.scrollIntoView({ behavior: 'smooth' });
 };
@@ -524,9 +506,6 @@ window.handlePlotSubmit = async function(e) {
   const area_acres = parseFloat($('modal-plot-acres').value);
   const soil_type  = $('modal-plot-soil').value;
   const sowing_date = $('modal-plot-sowing').value || null;
-  const baseline_N = parseFloat($('modal-plot-N').value);
-  const baseline_P = parseFloat($('modal-plot-P').value);
-  const baseline_K = parseFloat($('modal-plot-K').value);
 
   try {
     const res = await fetch('/api/farmer/plots', {
@@ -537,7 +516,6 @@ window.handlePlotSubmit = async function(e) {
       },
       body: JSON.stringify({
         plot_name, crop_type, area_acres, soil_type, sowing_date,
-        baseline_N, baseline_P, baseline_K,
       }),
     });
     const data = await res.json();
@@ -704,10 +682,6 @@ async function runAnalysis() {
   form.append('crop',     els.cropSelect.value);
   form.append('district', els.districtSelect.value);
 
-  if (els.inputN && els.inputN.value) form.append('N', els.inputN.value);
-  if (els.inputP && els.inputP.value) form.append('P', els.inputP.value);
-  if (els.inputK && els.inputK.value) form.append('K', els.inputK.value);
-
   const selectedPlotId = els.plotSelect ? els.plotSelect.value : '';
   if (selectedPlotId) form.append('plot_id', selectedPlotId);
 
@@ -744,7 +718,7 @@ async function runAnalysis() {
    RENDER RESULTS
 ══════════════════════════════════════════════════════════════════════════ */
 function renderResults(data) {
-  const { disease, yield_t_ha, fertilizer, mock_mode, weather, low_confidence, saved_record_id } = data;
+  const { disease, yield_t_ha, mock_mode, weather, low_confidence, saved_record_id } = data;
 
   // Mode banners
   els.mockBanner.classList.toggle('hidden', !mock_mode);
@@ -758,7 +732,7 @@ function renderResults(data) {
   $('res-disease-name').textContent   = disease.name;
   $('res-disease-crop').textContent   = `Crop: ${disease.crop}`;
   $('res-confidence').textContent     = `${disease.confidence.toFixed(1)}%`;
-  $('res-yield').textContent          = `${yield_t_ha} t/ha`;
+  $('res-yield').textContent          = `${(yield_t_ha * 4.047).toFixed(1)} Quintal / Acre`;
   $('res-yield-crop').textContent     = `For ${data.crop}`;
 
   const sev = disease.severity || 'None';
@@ -794,6 +768,15 @@ function renderResults(data) {
     orgList.appendChild(li);
   });
 
+  const chemCostEl = $('res-chem-cost');
+  const orgCostEl = $('res-org-cost');
+  if (chemCostEl) {
+    chemCostEl.textContent = `💰 Est: ${disease.chemical_cost || (disease.is_healthy ? '₹0 / Acre' : '₹550 – ₹900 / Acre')}`;
+  }
+  if (orgCostEl) {
+    orgCostEl.textContent = `🌱 Est: ${disease.organic_cost || (disease.is_healthy ? '₹0 / Acre' : '₹200 – ₹450 / Acre')}`;
+  }
+
   // ── Spray Window Weather Advisory ─────────────────────────────────────
   const sprayDiv = $('spray-window-banner');
   if (sprayDiv && weather && weather.spray_window) {
@@ -805,19 +788,6 @@ function renderResults(data) {
     sprayDiv.classList.remove('hidden');
   } else if (sprayDiv) {
     sprayDiv.classList.add('hidden');
-  }
-
-  // ── Fertilizer ─────────────────────────────────────────────────────────
-  $('res-fert-interpretation').textContent = fertilizer.interpretation;
-  recalculateFertilizerBags();
-
-  // Surplus N warning
-  const surplusDiv = $('res-npk-surplus');
-  if (surplusDiv && fertilizer.surplus_n_warning) {
-    surplusDiv.textContent = `⚠️ ${fertilizer.surplus_n_warning}`;
-    surplusDiv.classList.remove('hidden');
-  } else if (surplusDiv) {
-    surplusDiv.classList.add('hidden');
   }
 
   // ── Mandi Intelligence Card ────────────────────────────────────────────
@@ -838,9 +808,6 @@ function renderResults(data) {
     mandiCard.classList.add('hidden');
   }
 
-  // ── NPK Chart ──────────────────────────────────────────────────────────
-  renderNPKChart(fertilizer);
-
   // ── Severity coloring ──────────────────────────────────────────────────
   const metricSev = $('metric-severity');
   metricSev.style.borderColor = severityColor(sev);
@@ -856,67 +823,6 @@ function severityColor(sev) {
     Unknown:  'rgba(148,163,184,0.3)',
   };
   return map[sev] || map['Unknown'];
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   NPK CHART (Chart.js)
-══════════════════════════════════════════════════════════════════════════ */
-function renderNPKChart(fertilizer) {
-  const canvas = document.getElementById('npk-chart');
-  if (!canvas || !fertilizer || !fertilizer.soil) return;
-  const ctx = canvas.getContext('2d');
-  const { soil, target, deficit } = fertilizer;
-
-  if (state.npkChart) state.npkChart.destroy();
-
-  state.npkChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Nitrogen (N)', 'Phosphorus (P)', 'Potassium (K)'],
-      datasets: [
-        {
-          label: 'Current Soil Level',
-          data: [soil.N, soil.P, soil.K],
-          backgroundColor: 'rgba(6, 182, 212, 0.6)',
-          borderColor:     'rgba(6, 182, 212, 1)',
-          borderWidth: 1, borderRadius: 6,
-        },
-        {
-          label: 'Target Level (ICAR)',
-          data: [target.N, target.P, target.K],
-          backgroundColor: 'rgba(34, 197, 94, 0.4)',
-          borderColor:     'rgba(34, 197, 94, 1)',
-          borderWidth: 1, borderRadius: 6,
-        },
-        {
-          label: 'Deficit',
-          data: [deficit.N, deficit.P, deficit.K],
-          backgroundColor: 'rgba(239, 68, 68, 0.45)',
-          borderColor:     'rgba(239, 68, 68, 1)',
-          borderWidth: 1, borderRadius: 6,
-        },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      animation: { duration: 800, easing: 'easeInOutQuart' },
-      plugins: {
-        legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } } },
-        tooltip: {
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw} kg/ha` },
-          backgroundColor: 'rgba(13,26,32,0.92)', titleColor: '#e8f4f8',
-          bodyColor: '#94a3b8', borderColor: 'rgba(6,182,212,0.3)', borderWidth: 1,
-        },
-      },
-      scales: {
-        x: { ticks: { color: '#94a3b8', font: { family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: {
-          ticks: { color: '#94a3b8', font: { family: 'Inter' }, callback: v => `${v} kg/ha` },
-          grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true,
-        },
-      },
-    },
-  });
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -975,7 +881,7 @@ function renderServerHistory(records) {
         <div class="history-body">
           <p class="history-disease">${r.disease_name}</p>
           <p class="history-meta">${r.crop_type.toUpperCase()} · ${r.district.toUpperCase()}${plotLabel} · ${timeStr}</p>
-          <p class="history-meta">Yield: ${r.predicted_yield_t_ha} t/ha · Confidence: ${r.confidence.toFixed(1)}%</p>
+          <p class="history-meta">Yield: ${(r.predicted_yield_t_ha * 4.047).toFixed(1)} Quintal / Acre · Confidence: ${r.confidence.toFixed(1)}%</p>
         </div>
         <span class="severity-badge ${sevClass}">${r.severity}</span>
       </div>`;
@@ -1024,7 +930,7 @@ function renderLocalHistoryList() {
         <div class="history-body">
           <p class="history-disease">${e.disease}</p>
           <p class="history-meta">${e.crop} · ${e.district} · ${timeStr}</p>
-          <p class="history-meta">Yield: ${e.yield} t/ha · Confidence: ${e.conf.toFixed(1)}%</p>
+          <p class="history-meta">Yield: ${(e.yield * 4.047).toFixed(1)} Quintal / Acre · Confidence: ${e.conf.toFixed(1)}%</p>
         </div>
         <span class="severity-badge ${sevClass}">${e.severity}</span>
       </div>`;
@@ -1151,44 +1057,8 @@ function initDiseaseSearch() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   FARMER ERGONOMICS: BAGS, VOICE & SHARING
+   FARMER ERGONOMICS: VOICE & SHARING
 ══════════════════════════════════════════════════════════════════════════ */
-window.recalculateFertilizerBags = function() {
-  if (!state.lastResult || !state.lastResult.fertilizer) return;
-  const areaEl = $('fert-calc-area');
-  const unitEl = $('fert-calc-unit');
-  const area = parseFloat(areaEl ? areaEl.value : 1.0) || 1.0;
-  const unit = unitEl ? unitEl.value : 'acre';
-
-  const mult = unit === 'ha' ? area : (unit === 'acre' ? area / 2.47105 : area / 100.0);
-  const ferts = state.lastResult.fertilizer.fertilizers;
-
-  const ureaKg = ferts.Urea * mult;
-  const dapKg = ferts.DAP * mult;
-  const mopKg = ferts.MOP * mult;
-
-  const ureaBags = Math.ceil(ureaKg / 50.0);
-  const dapBags = Math.ceil(dapKg / 50.0);
-  const mopBags = Math.ceil(mopKg / 50.0);
-
-  const costUrea = ureaBags * 267;
-  const costDap = dapBags * 1350;
-  const costMop = mopBags * 1700;
-  const totalCost = costUrea + costDap + costMop;
-
-  $('val-urea').textContent = `${ureaBags} bags (50kg)`;
-  $('note-urea').textContent = `${ureaKg.toFixed(1)} kg • ₹${costUrea.toLocaleString('en-IN')}`;
-
-  $('val-dap').textContent = `${dapBags} bags (50kg)`;
-  $('note-dap').textContent = `${dapKg.toFixed(1)} kg • ₹${costDap.toLocaleString('en-IN')}`;
-
-  $('val-mop').textContent = `${mopBags} bags (50kg)`;
-  $('note-mop').textContent = `${mopKg.toFixed(1)} kg • ₹${costMop.toLocaleString('en-IN')}`;
-
-  const costBanner = $('val-fert-total-cost');
-  if (costBanner) costBanner.textContent = `₹${totalCost.toLocaleString('en-IN')}`;
-};
-
 let isVoiceSpeaking = false;
 window.toggleVoicePrescription = function() {
   if (!('speechSynthesis' in window)) {
@@ -1243,10 +1113,9 @@ window.shareWhatsApp = function() {
 📍 *District*: ${d.district}
 🦠 *Condition*: ${d.disease.name} (${d.disease.confidence}% confidence)
 ⚠️ *Severity*: ${d.disease.severity}
-🌾 *Yield Forecast*: ${d.yield_t_ha} t/ha (${(d.yield_t_ha * 4.047).toFixed(1)} q/acre)
-💊 *Chemical*: ${(d.disease.chemical_treatment || []).slice(0, 2).join(', ')}
-🌿 *Organic*: ${(d.disease.organic_treatment || []).slice(0, 2).join(', ')}
-🧬 *Fertilizer Plan*: Urea: ${d.fertilizer.fertilizers.Urea} kg/ha, DAP: ${d.fertilizer.fertilizers.DAP} kg/ha
+🌾 *Yield Forecast*: ${(d.yield_t_ha * 4.047).toFixed(1)} Quintal / Acre
+💊 *Chemical*: ${(d.disease.chemical_treatment || []).slice(0, 2).join(', ')} (Est. ${d.disease.chemical_cost || (d.disease.is_healthy ? '₹0 / Acre' : '₹550 – ₹900 / Acre')})
+🌿 *Organic*: ${(d.disease.organic_treatment || []).slice(0, 2).join(', ')} (Est. ${d.disease.organic_cost || (d.disease.is_healthy ? '₹0 / Acre' : '₹200 – ₹450 / Acre')})
 Generated via AeroCrop.ai Precision Agriculture Platform`;
 
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1262,7 +1131,6 @@ window.printReport = function(isPmfby = false) {
   }
   const d = state.lastResult;
   const disease = d.disease;
-  const fert    = d.fertilizer;
   const now     = new Date().toLocaleString('en-IN');
   const farmerName = state.currentUser ? state.currentUser.full_name : 'Guest Farmer';
   const title = isPmfby ? '🇮🇳 PMFBY Crop Damage Assessment & Loss Verification Report' : '🌿 AeroCrop.ai — Crop Advisory Report';
@@ -1317,14 +1185,6 @@ window.printReport = function(isPmfby = false) {
     </div>
   </div>
 
-  <h2>🧬 Fertilizer Dosage & Commercial Bags</h2>
-  <table>
-    <tr><th>Fertilizer</th><th>Deficit (kg/ha)</th><th>Standard 50kg Bags</th><th>Approx Subsidized Cost</th></tr>
-    <tr><td>Urea</td><td>${fert.fertilizers.Urea} kg</td><td>${Math.ceil(fert.fertilizers.Urea / 50)} bags</td><td>₹${Math.ceil(fert.fertilizers.Urea / 50) * 267}</td></tr>
-    <tr><td>DAP</td><td>${fert.fertilizers.DAP} kg</td><td>${Math.ceil(fert.fertilizers.DAP / 50)} bags</td><td>₹${Math.ceil(fert.fertilizers.DAP / 50) * 1350}</td></tr>
-    <tr><td>MOP</td><td>${fert.fertilizers.MOP} kg</td><td>${Math.ceil(fert.fertilizers.MOP / 50)} bags</td><td>₹${Math.ceil(fert.fertilizers.MOP / 50) * 1700}</td></tr>
-  </table>
-
   ${isPmfby ? `
   <div class="sign-row">
     <div class="sign-box">Signature of Insured Farmer</div>
@@ -1334,7 +1194,7 @@ window.printReport = function(isPmfby = false) {
   ` : ''}
 
   <div class="footer">
-    AeroCrop.ai — Precision Agriculture Platform &bull; Certified under ICAR nutrient guidelines.
+    AeroCrop.ai — Precision Agriculture Platform.
   </div>
 </body></html>`;
 

@@ -9,8 +9,6 @@ Seeds the MongoDB database with:
   2. Three diverse agricultural plots (Cotton, Tomato, Wheat).
   3. Six full-fidelity multi-modal analyses containing ALL analysis data:
      - Disease taxonomy & complete organic/chemical treatments
-     - Soil NPK deficiency baselines
-     - Commercial fertilizer bag requirements & costs
      - Weather telemetry & spray window safety intelligence
      - Mandi market rates & revenue projections
      - System telemetry & ensemble arbitration logs
@@ -37,7 +35,6 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import bcrypt
 import config
 from services.disease_service import DiseaseService
-from services.fertilizer_service import FertilizerService
 from services.mandi_service import MandiService
 
 
@@ -95,9 +92,6 @@ async def seed():
             "area_acres": 4.5,
             "sowing_date": (now - timedelta(days=50)).strftime("%Y-%m-%d"),
             "soil_type": "Medium Black",
-            "baseline_N": 60.0,
-            "baseline_P": 30.0,
-            "baseline_K": 30.0,
             "notes": "Drip-irrigated Bt Cotton block, black cotton soil.",
             "created_at": now - timedelta(days=50),
         },
@@ -109,9 +103,6 @@ async def seed():
             "area_acres": 2.0,
             "sowing_date": (now - timedelta(days=35)).strftime("%Y-%m-%d"),
             "soil_type": "Red Sandy Loam",
-            "baseline_N": 50.0,
-            "baseline_P": 25.0,
-            "baseline_K": 25.0,
             "notes": "Staked tomato plot, fertigation line active.",
             "created_at": now - timedelta(days=35),
         },
@@ -123,9 +114,6 @@ async def seed():
             "area_acres": 3.0,
             "sowing_date": (now - timedelta(days=20)).strftime("%Y-%m-%d"),
             "soil_type": "Black Loam",
-            "baseline_N": 55.0,
-            "baseline_P": 25.0,
-            "baseline_K": 20.0,
             "notes": "Lokwan wheat trial, sprinkler irrigation.",
             "created_at": now - timedelta(days=20),
         },
@@ -142,17 +130,10 @@ async def seed():
         disease_idx: int,
         confidence: float,
         yield_val: float,
-        soil_npk: tuple,
         weather_tuple: tuple,
         spray_safe: bool,
     ):
         d_info = DiseaseService.get_by_index(disease_idx)
-        fert = FertilizerService.calculate(
-            crop=plot["crop_type"],
-            soil_N=soil_npk[0],
-            soil_P=soil_npk[1],
-            soil_K=soil_npk[2],
-        )
         mandi = MandiService.get_market_rate(
             district="pune",
             crop=plot["crop_type"],
@@ -187,13 +168,6 @@ async def seed():
                 "quintals_per_ha": round(yield_val * 10.0, 2),
                 "quintals_per_acre": round(yield_val * 4.047, 2),
             },
-            "soil": {
-                "N": soil_npk[0],
-                "P": soil_npk[1],
-                "K": soil_npk[2],
-                "tested": True,
-            },
-            "fertilizer": fert,
             "weather": {
                 "temperature": weather_tuple[0],
                 "humidity": weather_tuple[1],
@@ -216,7 +190,7 @@ async def seed():
                 "out_of_distribution": False,
                 "ood_reason": "",
                 "ensemble_verified": True,
-                "model_weights": "aerocrop_weights_full_v3.pth",
+                "model_weights": "aerocrop_weights.pth",
             },
             "created_at": analysis_time,
             "updated_at": analysis_time,
@@ -231,7 +205,6 @@ async def seed():
             disease_idx=8,  # Cotton Bacterial Blight
             confidence=95.4,
             yield_val=1.85,
-            soil_npk=(50.0, 25.0, 30.0),
             weather_tuple=(29.5, 72.0, 2.5),
             spray_safe=False,
         ),
@@ -242,7 +215,6 @@ async def seed():
             disease_idx=8,  # Cotton Bacterial Blight (improving)
             confidence=88.2,
             yield_val=2.10,
-            soil_npk=(75.0, 38.0, 42.0),
             weather_tuple=(28.0, 64.0, 0.2),
             spray_safe=True,
         ),
@@ -253,7 +225,6 @@ async def seed():
             disease_idx=9,  # Cotton Healthy
             confidence=98.1,
             yield_val=2.65,
-            soil_npk=(105.0, 52.0, 55.0),
             weather_tuple=(27.5, 58.0, 0.0),
             spray_safe=True,
         ),
@@ -265,7 +236,6 @@ async def seed():
             disease_idx=26,  # Tomato Early Blight
             confidence=94.8,
             yield_val=22.4,
-            soil_npk=(60.0, 40.0, 40.0),
             weather_tuple=(26.2, 78.0, 4.0),
             spray_safe=False,
         ),
@@ -276,7 +246,6 @@ async def seed():
             disease_idx=34,  # Tomato Healthy
             confidence=97.0,
             yield_val=28.5,
-            soil_npk=(110.0, 70.0, 75.0),
             weather_tuple=(25.0, 60.0, 0.0),
             spray_safe=True,
         ),
@@ -288,7 +257,6 @@ async def seed():
             disease_idx=49,  # Wheat Healthy
             confidence=96.5,
             yield_val=3.80,
-            soil_npk=(65.0, 30.0, 25.0),
             weather_tuple=(24.5, 52.0, 0.0),
             spray_safe=True,
         ),

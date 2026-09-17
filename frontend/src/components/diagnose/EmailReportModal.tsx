@@ -46,7 +46,6 @@ export const EmailReportModal: React.FC<EmailReportModalProps> = ({
         crop: result.crop,
         district: result.district,
         disease: result.disease,
-        fertilizer: result.fertilizer,
         yield_t_ha: result.yield_t_ha,
         weather: result.weather,
       });
@@ -87,7 +86,7 @@ export const EmailReportModal: React.FC<EmailReportModalProps> = ({
         >
           <div>🌱 <strong>Crop:</strong> {result.crop.toUpperCase()} · 📍 {result.district.toUpperCase()}</div>
           <div>🦠 <strong>Diagnosis:</strong> {result.disease.name} ({result.disease.severity})</div>
-          <div>🌾 <strong>Yield Forecast:</strong> {result.yield_t_ha} t/ha</div>
+          <div>🌾 <strong>Yield Forecast:</strong> {(result.yield_t_ha * 4.047).toFixed(1)} Quintal / Acre</div>
         </div>
 
         <form onSubmit={handleSubmit}>

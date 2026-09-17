@@ -28,9 +28,6 @@ export const DiagnosePage: React.FC<DiagnosePageProps> = ({ initialPlotId = '', 
   const [districts, setDistricts] = useState<string[]>([]);
   const [selectedPlotId, setSelectedPlotId] = useState<string>(initialPlotId);
   const [farmerEmail, setFarmerEmail] = useState<string>('');
-  const [soilN, setSoilN] = useState<number | ''>('');
-  const [soilP, setSoilP] = useState<number | ''>('');
-  const [soilK, setSoilK] = useState<number | ''>('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
@@ -91,9 +88,6 @@ export const DiagnosePage: React.FC<DiagnosePageProps> = ({ initialPlotId = '', 
         crop,
         district,
         plot_id: selectedPlotId ? parseInt(selectedPlotId, 10) : null,
-        N: soilN === '' ? null : Number(soilN),
-        P: soilP === '' ? null : Number(soilP),
-        K: soilK === '' ? null : Number(soilK),
         email: farmerEmail.trim() || null,
       });
 
@@ -165,12 +159,6 @@ export const DiagnosePage: React.FC<DiagnosePageProps> = ({ initialPlotId = '', 
           districts={districts}
           selectedPlotId={selectedPlotId}
           setSelectedPlotId={setSelectedPlotId}
-          soilN={soilN}
-          setSoilN={setSoilN}
-          soilP={soilP}
-          setSoilP={setSoilP}
-          soilK={soilK}
-          setSoilK={setSoilK}
           farmerEmail={farmerEmail}
           setFarmerEmail={setFarmerEmail}
           onAnalyze={handleAnalyze}

@@ -3,9 +3,9 @@ AeroCrop.ai — Predict Controller
 
 Endpoints:
   POST /api/predict         → Full multi-modal inference
-                              (disease + yield + fertilizer + weather combined)
+                              (disease + yield + weather combined)
                               + Persistent saving when user is authenticated
-  GET  /api/disease/classes → 38-class disease knowledge base
+  GET  /api/disease/classes → 134-class disease knowledge base
   POST /api/model/reload    → Hot-reload weights without server restart
 
 MVC Role: Controller — orchestrates Model + Services, returns structured JSON.
@@ -33,7 +33,6 @@ from database.models import User, FarmPlot
 from model.inference             import InferenceService
 from services.auth_service       import get_optional_user
 from services.disease_service    import DiseaseService
-from services.fertilizer_service import FertilizerService
 from services.history_service    import HistoryService
 from services.weather_service    import WeatherService
 from services.mandi_service      import MandiService
@@ -61,7 +60,6 @@ class EmailReportRequest(BaseModel):
     crop: str
     district: str
     disease: dict
-    fertilizer: dict
     yield_t_ha: Optional[float] = None
     weather: Optional[dict] = None
 
@@ -91,9 +89,6 @@ async def predict(
     image:    UploadFile = File(..., description="RGB leaf photograph (JPG/PNG)"),
     crop:     str        = Form("auto", description="Crop type (or 'auto' for automatic visual specimen detection)"),
     district: str        = Form(..., description="Maharashtra district name"),
-    N:        Optional[float] = Form(None, description="Optional Soil Nitrogen level   (kg/ha)"),
-    P:        Optional[float] = Form(None, description="Optional Soil Phosphorus level (kg/ha)"),
-    K:        Optional[float] = Form(None, description="Optional Soil Potassium level  (kg/ha)"),
     plot_id:  Optional[int] = Form(None, description="Optional Plot ID to link this diagnosis to"),
     email:    Optional[str] = Form(None, description="Optional Farmer email to receive PDF report"),
     optional_user: Optional[User] = Depends(get_optional_user),
@@ -101,8 +96,8 @@ async def predict(
 ):
 
     """
-    Unified inference endpoint — accepts a leaf image + district (soil NPK optional),
-    returns disease diagnosis, fertilizer prescription, and yield forecast.
+    Unified inference endpoint — accepts a leaf image + district,
+    returns disease diagnosis and yield forecast.
     If the farmer is logged in, automatically saves the assessment & image to their history.
     """
     # ── 1. Validate image ────────────────────────────────────────────────────
@@ -135,9 +130,6 @@ async def predict(
             humidity=humidity,
             rainfall=rainfall,
             crop=prelim_crop,
-            N=N,
-            P=P,
-            K=K,
         )
     except Exception as exc:
         logger.error("Inference failed: %s", exc)
@@ -152,9 +144,6 @@ async def predict(
             local_crop=prelim_crop,
             local_class_idx=result["disease_class"],
             local_confidence=result["confidence"],
-            N=N,
-            P=P,
-            K=K,
         )
         if verified and (verified.get("out_of_distribution") or verified.get("is_supported") is False):
             logger.info("[PredictController] Specimen flagged as out-of-distribution: %s", verified.get("reason"))
@@ -187,7 +176,7 @@ async def predict(
     else:
         detected_crop_raw = disease_info.crop if disease_info else "Tomato"
     
-    # Standardize crop key for fertilizer & mandi lookups
+    # Standardize crop key for mandi lookups
     det_lower = detected_crop_raw.lower().strip()
     if "corn" in det_lower or "maize" in det_lower:
         effective_crop_key = "maize"
@@ -195,7 +184,7 @@ async def predict(
         effective_crop_key = "pepper"
     elif "orange" in det_lower or "citrus" in det_lower:
         effective_crop_key = "orange"
-    elif det_lower in config.CROP_NPK_TARGETS:
+    elif det_lower in config.SUPPORTED_CROPS:
         effective_crop_key = det_lower
     else:
         effective_crop_key = "tomato"
@@ -211,17 +200,16 @@ async def predict(
         "description":  disease_info.description  if disease_info else "",
         "chemical_treatment": disease_info.chemical_treatment if disease_info else [],
         "organic_treatment":  disease_info.organic_treatment  if disease_info else [],
+        "chemical_cost": disease_info.chemical_cost_display if disease_info else "₹0 / Acre",
+        "organic_cost":  disease_info.organic_cost_display  if disease_info else "₹0 / Acre",
         "confidence":   round(result["confidence"] * 100, 2),
         "probabilities": result["probabilities"],
     }
 
-    # ── 5. Fertilizer recommendation for the AUTO-DETECTED crop ──────────────
-    fertilizer_payload = FertilizerService.calculate(crop=effective_crop_key, soil_N=N, soil_P=P, soil_K=K)
-
-    # ── 6. Mandi price intelligence & revenue forecast for the AUTO-DETECTED crop
+    # ── 5. Mandi price intelligence & revenue forecast for the AUTO-DETECTED crop
     mandi_payload = MandiService.get_market_rate(district, crop=effective_crop_key, yield_t_ha=result["yield_t_ha"])
 
-    # ── 7. Persist to database if authenticated ──────────────────────────────
+    # ── 6. Persist to database if authenticated ──────────────────────────────
     saved_record_id = None
     saved_image_url = None
 
@@ -263,12 +251,6 @@ async def predict(
                 severity=disease_payload["severity"],
                 is_healthy=disease_payload["is_healthy"],
                 predicted_yield_t_ha=result["yield_t_ha"],
-                soil_N=N,
-                soil_P=P,
-                soil_K=K,
-                fertilizer_urea_kg=fertilizer_payload["fertilizers"]["Urea"],
-                fertilizer_dap_kg=fertilizer_payload["fertilizers"]["DAP"],
-                fertilizer_mop_kg=fertilizer_payload["fertilizers"]["MOP"],
                 weather_temp=temperature,
                 weather_hum=humidity,
                 weather_rain=rainfall,
@@ -278,7 +260,6 @@ async def predict(
                 image_bytes=image_bytes,
                 # Store all info analyses
                 disease_payload=disease_payload,
-                fertilizer_payload=fertilizer_payload,
                 weather_payload=weather,
                 mandi_payload=mandi_payload,
                 system_telemetry={
@@ -295,7 +276,7 @@ async def predict(
         except Exception as exc:
             logger.warning("[PredictController] Could not persist diagnosis: %s", exc)
 
-    # ── 8. Queue Email Advisory PDF Dispatch if Email is Available ────────────
+    # ── 7. Queue Email Advisory PDF Dispatch if Email is Available ────────────
     target_email = email.strip() if email and email.strip() else (optional_user.email if optional_user and optional_user.email else None)
     farmer_name = optional_user.full_name if optional_user else "Farmer"
     email_status = None
@@ -306,7 +287,6 @@ async def predict(
             "district": district.title(),
             "yield_t_ha": result["yield_t_ha"],
             "disease": disease_payload,
-            "fertilizer": fertilizer_payload,
             "weather": weather,
         }
         background_tasks.add_task(
@@ -317,7 +297,7 @@ async def predict(
         )
         email_status = "queued"
 
-    # ── 9. Compose final response ─────────────────────────────────────────────
+    # ── 8. Compose final response ─────────────────────────────────────────────
     return JSONResponse({
         "status":              "success",
         "mock_mode":           result["mock"],
@@ -334,7 +314,6 @@ async def predict(
         "weather":         weather,
         "disease":         disease_payload,
         "yield_t_ha":      result["yield_t_ha"],
-        "fertilizer":      fertilizer_payload,
         "mandi":           mandi_payload,
         "email_status":    email_status,
         "email_recipient": target_email,
@@ -354,7 +333,6 @@ async def email_report(
         "crop": req.crop,
         "district": req.district,
         "disease": req.disease,
-        "fertilizer": req.fertilizer,
         "yield_t_ha": req.yield_t_ha,
         "weather": req.weather or {},
     }
@@ -389,6 +367,8 @@ async def list_diseases():
             "description":        d.description,
             "chemical_treatment": d.chemical_treatment,
             "organic_treatment":  d.organic_treatment,
+            "chemical_cost":      d.chemical_cost_display,
+            "organic_cost":       d.organic_cost_display,
         }
         for d in DiseaseService.DISEASES
     ]

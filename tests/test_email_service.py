@@ -46,7 +46,6 @@ async def test_email_service_mock_success():
                 "district": "Pune",
                 "yield_t_ha": 25.0,
                 "disease": {"name": "Healthy", "confidence": 98.0},
-                "fertilizer": {"fertilizers": {"Urea": 100, "DAP": 50, "MOP": 40}},
             },
             farmer_name="Test Farmer",
         )
@@ -69,7 +68,6 @@ async def test_email_report_endpoint():
                 "crop": "Tomato",
                 "district": "Pune",
                 "disease": {"name": "Early Blight", "confidence": 95.0, "severity": "High"},
-                "fertilizer": {"fertilizers": {"Urea": 120, "DAP": 60, "MOP": 50}},
                 "yield_t_ha": 22.4,
             }
             res = await client.post("/api/predict/email-report", json=payload)

@@ -4,8 +4,8 @@ AeroCrop.ai — Persistent Diagnosis History & Full Analysis Analytics Service (
 Manages storage, retrieval, image caching, and statistical summarization of historical
 crop diagnoses for registered farmers.
 Stores ALL multi-modal analysis intelligence (disease taxonomy, full treatments,
-fertilizer commercial bag dosages and costs, weather telemetry & spray windows,
-mandi market intelligence & revenue projections, and ensemble verification).
+weather telemetry & spray windows, mandi market intelligence & revenue projections,
+and ensemble verification).
 """
 
 import logging
@@ -17,7 +17,6 @@ import config
 from database.mongodb import get_next_sequence
 from database.models import DiagnosisRecord
 from services.disease_service import DiseaseService
-from services.fertilizer_service import FertilizerService
 from services.storage_service import get_storage_provider
 
 logger = logging.getLogger("aerocrop.history")
@@ -38,12 +37,6 @@ class HistoryService:
         severity: str,
         is_healthy: bool,
         predicted_yield_t_ha: float = 0.0,
-        soil_N: Optional[float] = None,
-        soil_P: Optional[float] = None,
-        soil_K: Optional[float] = None,
-        fertilizer_urea_kg: float = 0.0,
-        fertilizer_dap_kg: float = 0.0,
-        fertilizer_mop_kg: float = 0.0,
         weather_temp: float = 0.0,
         weather_hum: float = 0.0,
         weather_rain: float = 0.0,
@@ -53,14 +46,13 @@ class HistoryService:
         image_bytes: Optional[bytes] = None,
         # Extended parameters for full analysis storage:
         disease_payload: Optional[Dict[str, Any]] = None,
-        fertilizer_payload: Optional[Dict[str, Any]] = None,
         weather_payload: Optional[Dict[str, Any]] = None,
         mandi_payload: Optional[Dict[str, Any]] = None,
         system_telemetry: Optional[Dict[str, Any]] = None,
     ) -> DiagnosisRecord:
         """
         Persist a complete diagnosis assessment in MongoDB, including all multi-modal
-        treatments, fertilizer prescriptions, weather telemetry, and mandi projections.
+        treatments, weather telemetry, and mandi projections.
         """
         image_filename = None
         image_url = None
@@ -104,32 +96,7 @@ class HistoryService:
             "quintals_per_acre": round(yield_val * 4.047, 2),
         }
 
-        # 3. Soil payload construction
-        soil_data = {
-            "N": float(soil_N) if soil_N is not None else None,
-            "P": float(soil_P) if soil_P is not None else None,
-            "K": float(soil_K) if soil_K is not None else None,
-            "tested": soil_N is not None,
-        }
-
-        # 4. Fertilizer payload construction
-        if not fertilizer_payload:
-            fertilizer_payload = FertilizerService.calculate(
-                crop=crop_type.lower(),
-                soil_N=soil_N,
-                soil_P=soil_P,
-                soil_K=soil_K,
-            )
-        else:
-            # Ensure Urea, DAP, MOP are present
-            if "fertilizers" not in fertilizer_payload:
-                fertilizer_payload["fertilizers"] = {
-                    "Urea": fertilizer_urea_kg,
-                    "DAP": fertilizer_dap_kg,
-                    "MOP": fertilizer_mop_kg,
-                }
-
-        # 5. Weather payload construction
+        # 3. Weather payload construction
         full_weather = {
             "temperature": float(weather_temp or 0.0),
             "humidity": float(weather_hum or 0.0),
@@ -141,7 +108,7 @@ class HistoryService:
         if weather_payload:
             full_weather.update({k: v for k, v in weather_payload.items() if v is not None})
 
-        # 6. Telemetry construction
+        # 4. Telemetry construction
         full_telemetry = {
             "mock_mode": bool(mock_mode),
             "low_confidence": bool(low_confidence),
@@ -168,8 +135,6 @@ class HistoryService:
             "disease": full_disease,
             "yield": yield_data,
             "yield_data": yield_data,
-            "soil": soil_data,
-            "fertilizer": fertilizer_payload,
             "weather": full_weather,
             "mandi": mandi_payload,
             "system_telemetry": full_telemetry,
@@ -215,8 +180,6 @@ class HistoryService:
         for r in records:
             d_doc = r.get("disease", {})
             y_doc = r.get("yield", r.get("yield_data", {}))
-            s_doc = r.get("soil", {})
-            f_doc = r.get("fertilizer", {})
             w_doc = r.get("weather", {})
             t_doc = r.get("system_telemetry", {})
 
@@ -239,16 +202,6 @@ class HistoryService:
                 "severity": d_doc.get("severity", r.get("severity", "None")),
                 "is_healthy": d_doc.get("is_healthy", r.get("is_healthy", False)),
                 "predicted_yield_t_ha": y_doc.get("predicted_yield_t_ha", r.get("predicted_yield_t_ha", 0.0)),
-                "soil": {
-                    "N": s_doc.get("N", r.get("soil_N")),
-                    "P": s_doc.get("P", r.get("soil_P")),
-                    "K": s_doc.get("K", r.get("soil_K")),
-                },
-                "fertilizers": f_doc.get("fertilizers", {
-                    "Urea": r.get("fertilizer_urea_kg", 0.0),
-                    "DAP": r.get("fertilizer_dap_kg", 0.0),
-                    "MOP": r.get("fertilizer_mop_kg", 0.0),
-                }),
                 "weather": {
                     "temperature": w_doc.get("temperature", r.get("weather_temp", 0.0)),
                     "humidity": w_doc.get("humidity", r.get("weather_hum", 0.0)),
@@ -276,7 +229,7 @@ class HistoryService:
     ) -> Optional[Dict[str, Any]]:
         """
         Fetch full details of a specific diagnosis record from MongoDB,
-        returning the complete stored analysis document (treatments, fertilizers, weather, mandi).
+        returning the complete stored analysis document (treatments, weather, mandi).
         """
         record = await db.analyses.find_one({"id": record_id, "user_id": user_id})
         if not record:
@@ -284,7 +237,6 @@ class HistoryService:
 
         d_doc = record.get("disease", {})
         y_doc = record.get("yield", record.get("yield_data", {}))
-        f_doc = record.get("fertilizer", {})
         w_doc = record.get("weather", {})
         m_doc = record.get("mandi")
         t_doc = record.get("system_telemetry", {})
@@ -305,16 +257,6 @@ class HistoryService:
             "confidence": d_doc.get("confidence", record.get("confidence", 0.0)),
         }
 
-        # Rehydrate fertilizer details if not present
-        if not f_doc or "mode" not in f_doc:
-            soil_data = record.get("soil", {})
-            f_doc = FertilizerService.calculate(
-                record.get("crop_type", "tomato"),
-                soil_data.get("N", record.get("soil_N")),
-                soil_data.get("P", record.get("soil_P")),
-                soil_data.get("K", record.get("soil_K")),
-            )
-
         created_at = record.get("created_at")
         created_iso = created_at.isoformat() if isinstance(created_at, datetime) else created_at
 
@@ -328,7 +270,6 @@ class HistoryService:
             "disease": disease_detail,
             "yield_t_ha": y_doc.get("predicted_yield_t_ha", record.get("predicted_yield_t_ha", 0.0)),
             "yield": y_doc,
-            "fertilizer": f_doc,
             "weather": w_doc or {
                 "temperature": record.get("weather_temp", 0.0),
                 "humidity": record.get("weather_hum", 0.0),
@@ -479,7 +420,6 @@ class HistoryService:
                 covered_diag_ids.add(d.get("id"))
                 d_doc = d.get("disease", {})
                 y_doc = d.get("yield", d.get("yield_data", {}))
-                f_doc = d.get("fertilizer", {})
                 w_doc = d.get("weather", {})
 
                 created_at = d.get("created_at")
@@ -492,8 +432,6 @@ class HistoryService:
                 else:
                     created_iso = None
                     date_display = "--"
-
-                fertilizers = f_doc.get("fertilizers", {})
 
                 analyses_list.append({
                     "id": d.get("id"),
@@ -509,11 +447,6 @@ class HistoryService:
                     "weather_temp": w_doc.get("temperature", d.get("weather_temp")),
                     "weather_hum": w_doc.get("humidity", d.get("weather_hum")),
                     "weather_rain": w_doc.get("rainfall", d.get("weather_rain")),
-                    "fertilizers": {
-                        "urea_kg": fertilizers.get("Urea", d.get("fertilizer_urea_kg")),
-                        "dap_kg": fertilizers.get("DAP", d.get("fertilizer_dap_kg")),
-                        "mop_kg": fertilizers.get("MOP", d.get("fertilizer_mop_kg")),
-                    },
                 })
 
             total_an = len(analyses_list)
@@ -593,7 +526,6 @@ class HistoryService:
                 for idx, d in enumerate(diags):
                     d_doc = d.get("disease", {})
                     y_doc = d.get("yield", d.get("yield_data", {}))
-                    f_doc = d.get("fertilizer", {})
                     w_doc = d.get("weather", {})
 
                     created_at = d.get("created_at")
@@ -606,8 +538,6 @@ class HistoryService:
                     else:
                         created_iso = None
                         date_display = "--"
-
-                    fertilizers = f_doc.get("fertilizers", {})
 
                     analyses_list.append({
                         "id": d.get("id"),
@@ -623,11 +553,6 @@ class HistoryService:
                         "weather_temp": w_doc.get("temperature", d.get("weather_temp")),
                         "weather_hum": w_doc.get("humidity", d.get("weather_hum")),
                         "weather_rain": w_doc.get("rainfall", d.get("weather_rain")),
-                        "fertilizers": {
-                            "urea_kg": fertilizers.get("Urea", d.get("fertilizer_urea_kg")),
-                            "dap_kg": fertilizers.get("DAP", d.get("fertilizer_dap_kg")),
-                            "mop_kg": fertilizers.get("MOP", d.get("fertilizer_mop_kg")),
-                        },
                     })
 
                 latest_diag = analyses_list[-1]

@@ -3,9 +3,7 @@ import { PredictionResult } from '../../types';
 import { useI18n } from '../../context/I18nContext';
 import { MetricCards } from './MetricCards';
 import { TreatmentCard } from './TreatmentCard';
-import { FertilizerCard } from './FertilizerCard';
 import { MandiCard } from './MandiCard';
-import { NPKChart } from './NPKChart';
 
 interface ResultsAreaProps {
   result: PredictionResult;
@@ -13,7 +11,7 @@ interface ResultsAreaProps {
 
 export const ResultsArea: React.FC<ResultsAreaProps> = ({ result }) => {
   const { language, t } = useI18n();
-  const { mock_mode, low_confidence, saved_record_id, disease, fertilizer, weather, mandi } = result;
+  const { mock_mode, low_confidence, saved_record_id, disease, weather, mandi } = result;
 
   const sprayWindow = weather?.spray_window;
   const sprayReason = sprayWindow
@@ -123,22 +121,13 @@ export const ResultsArea: React.FC<ResultsAreaProps> = ({ result }) => {
       {/* Metric Cards Row */}
       <MetricCards result={result} />
 
-      {/* Treatment + Fertilizer Row */}
-      <div className="detail-row">
+      {/* Treatment Row */}
+      <div style={{ marginBottom: '20px' }}>
         <TreatmentCard disease={disease} />
-        <FertilizerCard result={result} />
       </div>
 
       {/* Mandi Intelligence Card */}
       {mandi && <MandiCard mandi={mandi} />}
-
-      {/* Fertilizer Growth Stage Schedule */}
-      <NPKChart
-        fertilizer={fertilizer}
-        crop={result.crop}
-        district={result.district}
-        diseaseName={disease?.name}
-      />
     </div>
   );
 };

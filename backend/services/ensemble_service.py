@@ -38,9 +38,6 @@ class EnsembleService:
         local_crop: str,
         local_class_idx: int,
         local_confidence: float,
-        N: Optional[float] = None,
-        P: Optional[float] = None,
-        K: Optional[float] = None,
     ) -> dict[str, Any] | None:
         """
         Submits specimen imagery and environmental context to the validator microservice.
@@ -69,12 +66,6 @@ class EnsembleService:
             "local_class_idx": str(local_class_idx),
             "local_confidence": str(round(local_confidence, 4)),
         }
-        if N is not None:
-            form_data["soil_N"] = str(N)
-        if P is not None:
-            form_data["soil_P"] = str(P)
-        if K is not None:
-            form_data["soil_K"] = str(K)
 
         files = {
             "image": ("specimen.jpg", image_bytes, "image/jpeg"),

@@ -105,19 +105,19 @@ class TestDiseaseClassesEndpoint:
             missing = required - d.keys()
             assert missing == set(), f"Disease idx {d.get('class_index')} missing: {missing}"
 
-    def test_potato_healthy_at_13(self):
+    def test_potato_healthy_at_68(self):
         r = client.get("/api/disease/classes")
         diseases = r.json()["diseases"]
-        d = diseases[13]
-        assert d["class_index"] == 13
-        assert d["is_healthy"] is True, f"Index 13 should be healthy potato, got: {d['name']}"
+        d = diseases[68]
+        assert d["class_index"] == 68
+        assert d["is_healthy"] is True, f"Index 68 should be healthy potato, got: {d['name']}"
 
-    def test_potato_late_blight_at_12(self):
+    def test_potato_late_blight_at_60(self):
         r = client.get("/api/disease/classes")
         diseases = r.json()["diseases"]
-        d = diseases[12]
-        assert d["class_index"] == 12
-        assert d["is_healthy"] is False, f"Index 12 should be Potato Late Blight, got: {d['name']}"
+        d = diseases[60]
+        assert d["class_index"] == 60
+        assert d["is_healthy"] is False, f"Index 60 should be Potato Late Blight, got: {d['name']}"
 
 
 # ── Predict ───────────────────────────────────────────────────────────────────
@@ -129,9 +129,6 @@ class TestPredictEndpoint:
             data={
                 "crop":     "tomato",
                 "district": "pune",
-                "N":        "60",
-                "P":        "30",
-                "K":        "30",
             },
             files={"image": ("leaf.jpg", JPEG_BYTES, "image/jpeg")},
         )
@@ -153,23 +150,14 @@ class TestPredictEndpoint:
         assert "yield_t_ha" in data
         assert data["yield_t_ha"] >= 0
 
-    def test_predict_has_fertilizer(self, prediction):
+    def test_predict_no_fertilizer(self, prediction):
         data = prediction.json()
-        assert "fertilizer" in data
-        fert = data["fertilizer"]
-        assert "Urea" in fert["fertilizers"]
-        assert "DAP"  in fert["fertilizers"]
-        assert "MOP"  in fert["fertilizers"]
+        assert "fertilizer" not in data
 
     def test_predict_has_low_confidence_flag(self, prediction):
         data = prediction.json()
         assert "low_confidence" in data
         assert isinstance(data["low_confidence"], bool)
-
-    def test_predict_has_surplus_n_warning(self, prediction):
-        data = prediction.json()
-        fert = data["fertilizer"]
-        assert "surplus_n_warning" in fert
 
     def test_predict_confidence_is_percentage(self, prediction):
         data = prediction.json()
@@ -179,13 +167,13 @@ class TestPredictEndpoint:
     def test_predict_bad_image_returns_400(self):
         r = client.post(
             "/api/predict",
-            data={"crop": "tomato", "district": "pune", "N": "60", "P": "30", "K": "30"},
+            data={"crop": "tomato", "district": "pune"},
             files={"image": ("bad.jpg", b"not_an_image", "image/jpeg")},
         )
         assert r.status_code == 400
 
     def test_predict_all_17_crops(self):
-        """All 17 supported crops should return 200 (not crash on NPK lookup)."""
+        """All 17 supported crops should return 200."""
         crops = [
             "cotton", "wheat", "maize", "rice", "potato",
             "tomato", "pepper", "apple", "grape", "orange",
@@ -195,7 +183,7 @@ class TestPredictEndpoint:
         for crop in crops:
             r = client.post(
                 "/api/predict",
-                data={"crop": crop, "district": "pune", "N": "50", "P": "25", "K": "25"},
+                data={"crop": crop, "district": "pune"},
                 files={"image": ("leaf.jpg", JPEG_BYTES, "image/jpeg")},
             )
             assert r.status_code == 200, f"Crop '{crop}' returned {r.status_code}: {r.text}"
@@ -222,7 +210,6 @@ class TestPredictEndpoint:
                 "crop": "Tomato",
                 "district": "Pune",
                 "disease": {"name": "Healthy"},
-                "fertilizer": {},
             },
         )
         assert r.status_code == 422

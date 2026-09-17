@@ -143,11 +143,11 @@ async def serve_index():
     """Serve the React frontend dashboard (or legacy HTML if not built)."""
     react_index = os.path.join(FRONTEND_DIST, "index.html")
     if os.path.exists(react_index):
-        return FileResponse(react_index, media_type="text/html")
+        return FileResponse(react_index, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     legacy_index = os.path.join(config.VIEWS_DIR, "index.html")
     if os.path.exists(legacy_index):
-        return FileResponse(legacy_index, media_type="text/html")
+        return FileResponse(legacy_index, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     return JSONResponse({"detail": "Frontend not found. Please build the frontend with 'npm run build'."}, status_code=404)
 
@@ -160,7 +160,7 @@ async def health():
         "status":  "ok",
         "device":  config.DEVICE,
         "version": "1.0.0",
-        "crops":   list(config.CROP_NPK_TARGETS.keys()),
+        "crops":   config.SUPPORTED_CROPS,
     }
 
 
@@ -173,11 +173,11 @@ async def serve_spa(full_path: str):
 
     react_index = os.path.join(FRONTEND_DIST, "index.html")
     if os.path.exists(react_index):
-        return FileResponse(react_index, media_type="text/html")
+        return FileResponse(react_index, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     legacy_index = os.path.join(config.VIEWS_DIR, "index.html")
     if os.path.exists(legacy_index):
-        return FileResponse(legacy_index, media_type="text/html")
+        return FileResponse(legacy_index, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 

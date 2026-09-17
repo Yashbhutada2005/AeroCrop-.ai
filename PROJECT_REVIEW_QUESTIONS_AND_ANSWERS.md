@@ -12,7 +12,7 @@
 3. [Deep Learning Architecture & Multi-Modal Fusion](#3-deep-learning-architecture--multi-modal-fusion)
 4. [Multi-Task Learning, Loss Functions & Optimization](#4-multi-task-learning-loss-functions--optimization)
 5. [Evaluation Metrics & Experimental Results](#5-evaluation-metrics--experimental-results)
-6. [Agronomic Domain Logic & Fertilizer Calculations](#6-agronomic-domain-logic--fertilizer-calculations)
+6. [Agronomic Domain Logic & Precision Disease Management](#6-agronomic-domain-logic--precision-disease-management)
 7. [System Design, Backend, API & Software Engineering](#7-system-design-backend-api--software-engineering)
 8. [Examiner "Trap" Questions & Defense Strategies](#8-examiner-trap-questions--defense-strategies)
 9. [Limitations, Real-World Edge Cases & Future Scope](#9-limitations-real-world-edge-cases--future-scope)
@@ -24,11 +24,11 @@
 
 ### Q1.1: What is the core problem AeroCrop.ai solves?
 **Answer:**  
-In conventional agriculture, farmers face two separate yet interdependent bottlenecks:
-1. **Delayed or Inaccurate Disease Diagnosis**: Visual symptoms of foliar infections are often misdiagnosed or diagnosed too late, leading to inappropriate pesticide usage and up to 30–40% crop yield loss.
-2. **Sub-optimal Nutrient & Resource Management**: Fertilizer dosage is often applied uniformly without considering residual soil nutrient levels (N, P, K) or microclimatic factors (temperature, humidity, rainfall), causing soil degradation and economic waste.
+In conventional agriculture, farmers face critical bottlenecks:
+1. **Delayed or Inaccurate Disease Diagnosis**: Visual symptoms of foliar infections are often misdiagnosed or diagnosed too late, leading to inappropriate pesticide usage, pesticide resistance, and up to 30–40% crop yield loss.
+2. **Disconnected Diagnostics and Economics**: Typical diagnostic apps output only an academic pathology label without actionable agronomic spray advisories, spray-window weather timing, or APMC mandi revenue context.
 
-**AeroCrop.ai** addresses this by providing an end-to-end, multi-modal decision support system that takes a single leaf photograph and tabular soil/weather telemetry, simultaneously diagnosing disease (38 classes), prescribing chemical/organic remedies, computing precise NPK fertilizer dosages (Urea, DAP, MOP), and forecasting harvest yield (in tons/hectare).
+**AeroCrop.ai** addresses this by providing an end-to-end, multi-modal decision support system that takes a single leaf photograph and microclimate telemetry (temperature, humidity, rainfall), simultaneously diagnosing disease (134 classes across 11 field crops), prescribing validated chemical and organic remedies, assessing foliar spray safety, and forecasting harvest yield (in tons/hectare).
 
 ---
 
@@ -39,19 +39,19 @@ Most existing literature and apps treat **disease classification** and **yield p
 - Traditional yield forecasting systems only look at tabular climate or historical yield statistics.
 
 **Novelties of AeroCrop.ai:**
-1. **Multi-Modal Joint Architecture**: Combines unstructured high-dimensional vision data (RGB leaf images) with structured low-dimensional tabular data (soil N, P, K + live weather) in a single shared latent representation (128-dimensional embedding).
-2. **Multi-Task Learning (MTL)**: Simultaneously solves a classification task (38-class disease taxonomy) and a regression task (yield forecasting) using shared parameter representations, reducing inference latency and regularizing the visual encoder.
-3. **Closed-Loop Actionable Advisory**: Rather than just outputting a label, it integrates Indian Council of Agricultural Research (ICAR) stoichiometry to calculate exact commercial fertilizer bags (DAP, Urea, MOP) based on nutrient deficits.
+1. **Multi-Modal Joint Architecture**: Combines unstructured high-dimensional vision data (RGB leaf images) with structured low-dimensional weather telemetry (temperature, humidity, rainfall) in a single shared latent representation (128-dimensional embedding).
+2. **Multi-Task Learning (MTL)**: Simultaneously solves a classification task (134-class multi-crop disease taxonomy) and a regression task (yield forecasting) using shared parameter representations, reducing inference latency and regularizing the visual encoder.
+3. **Closed-Loop Actionable Advisory**: Rather than just outputting a label, it provides specific chemical dosages, active ingredients, organic remedies, foliar spraying safety windows, and APMC market price projections.
 4. **Live Telemetry Integration**: Dynamic weather retrieval across 36 Maharashtra districts via the Open-Meteo API.
 
 ---
 
 ### Q1.3: What are the primary objectives of the project?
 **Answer:**  
-1. Develop a multi-modal neural network fusing Convolutional Neural Networks (ResNet-18) with a Multi-Layer Perceptron (MLP).
-2. Achieve >90% disease classification accuracy across 38 distinct crop-disease combinations.
+1. Develop a multi-modal neural network fusing Convolutional Neural Networks (ResNet-18 / EfficientNet) with a Multi-Layer Perceptron (MLP).
+2. Achieve >90% disease classification accuracy across 134 distinct crop-disease and disorder classes covering 11 Maharashtra staple crops.
 3. Provide real-time yield estimation (in t/ha) with an RMSE under 7.0 t/ha.
-4. Implement stoichiometric fertilizer calculations following ICAR Maharashtra crop guidelines.
+4. Deliver actionable disease management prescriptions and foliar spraying safety advisories.
 5. Deploy a lightweight, asynchronous REST API (FastAPI) and responsive glassmorphic dashboard with <150ms local inference response time.
 
 ---
@@ -61,9 +61,10 @@ Most existing literature and apps treat **disease classification** and **yield p
 ### Q2.1: What datasets did you use for training?
 **Answer:**  
 We used two primary data sources:
-1. **Visual Dataset (PlantVillage / New Plant Diseases Dataset)**:
-   - **Size**: ~87,900 high-resolution leaf images across 38 categories (including healthy and diseased leaves for apple, corn, grape, potato, tomato, bell pepper, etc.).
-   - **Classes**: 38 classes (e.g., `Potato___Early_blight`, `Potato___Late_blight`, `Tomato___Yellow_Leaf_Curl_Virus`, `Corn___Common_rust_`).
+1. **Visual Dataset (Multi-Source Verified Agricultural Pathology Repositories)**:
+   - **Size**: **165,510 clean, unique images** (132,491 train, 33,019 valid) partitioned strictly 80% train / 20% validation.
+   - **Classes**: **134 diagnostic classes** across 11 field crops of Maharashtra (Potato 18, Cotton 15, Orange 13, Banana 12, Sugarcane 12, Maize 11, Rice 11, Soybean 11, Wheat 11, Tomato 10, Turmeric 10).
+   - **Sources**: Mendeley Data (Sweet Orange, Soybean MH-Soya, Cotton, Turmeric, Maize), PlantVillage (Tomato, Potato, Corn), Kaggle (Paddy Doctor Rice, Cotton CLID), and Dryad/Zenodo.
 2. **Tabular Yield Dataset (FAO / Global Crop Yield & Weather Data)**:
    - **Attributes**: Crop Type, Year, Average Temperature (°C), Annual Rainfall (mm), Pesticides (tonnes), and Yield (`hg/ha_yield` converted to `t/ha`).
    - **Imputed Soil Data**: Baseline soil Nitrogen ($N$), Phosphorus ($P$), Potassium ($K$) parameterized from regional ICAR agricultural baselines.
@@ -211,49 +212,34 @@ Over 19 training epochs (as logged in `model/training_log.csv`):
 
 ---
 
-## 6. Agronomic Domain Logic & Fertilizer Calculations
+## 6. Agronomic Domain Logic & Precision Disease Management
 
-### Q6.1: Explain the exact mathematical formulation used for fertilizer dosage.
+### Q6.1: How does AeroCrop.ai formulate actionable disease management prescriptions?
 **Answer:**  
-The fertilizer logic in `services/fertilizer_service.py` is based on **ICAR stoichiometry**:
-
-1. **Calculate Nutrient Deficits**:
-   $$D_N = \max(0, \text{Target}_N - \text{Soil}_N)$$
-   $$D_P = \max(0, \text{Target}_P - \text{Soil}_P)$$
-   $$D_K = \max(0, \text{Target}_K - \text{Soil}_K)$$
-
-2. **DAP (Di-ammonium Phosphate: $18\% \text{ N}, 46\% \text{ P}_2\text{O}_5$) Application**:
-   Phosphorus is supplied via DAP first:
-   $$\text{DAP}_{\text{required}} = \frac{D_P}{0.46} \quad (\text{kg/ha})$$
-
-3. **Urea ($46\% \text{ N}$) Application (Accounting for DAP Nitrogen Contribution)**:
-   Since DAP contains $18\%$ Nitrogen, DAP contributes:
-   $$N_{\text{from DAP}} = \text{DAP}_{\text{required}} \times 0.18$$
-   The remaining Nitrogen deficit is:
-   $$N_{\text{remaining}} = \max(0, D_N - N_{\text{from DAP}})$$
-   $$\text{Urea}_{\text{required}} = \frac{N_{\text{remaining}}}{0.46} \quad (\text{kg/ha})$$
-
-4. **MOP (Muriate of Potash: $60\% \text{ K}_2\text{O}$) Application**:
-   $$\text{MOP}_{\text{required}} = \frac{D_K}{0.60} \quad (\text{kg/ha})$$
+Rather than providing only generic disease names, the platform links each diagnosed condition (across all 134 classes) to a structured agronomic repository:
+1. **Chemical Treatments**: Registered active ingredients (e.g. Copper Oxychloride, Mancozeb, Propiconazole), precise dilution ratios (e.g. 2.5 g/L or 1.5 mL/L water), and spray intervals.
+2. **Organic & Biological Remedies**: Eco-friendly bio-fungicides (*Trichoderma viride*, *Pseudomonas fluorescens*), neem oil formulations (10,000 ppm), and cultural sanitation measures.
+3. **Severity-Graded Response**: Dynamic severity ratings (`None`, `Low`, `Moderate`, `High`, `Critical`) prioritize urgent intervention when crop losses threaten field viability.
 
 ---
 
-### Q6.2: Why is DAP calculated before Urea?
+### Q6.2: How does the foliar spraying safety decision engine protect crops and reduce chemical costs?
 **Answer:**  
-DAP is a compound fertilizer containing **both** $18\%$ Nitrogen and $46\%$ Phosphorus. If Urea were calculated first to satisfy total Nitrogen deficit, adding DAP later to satisfy Phosphorus would oversupply Nitrogen, causing **Nitrogen toxicity**, vegetative overgrowth, delayed fruiting, and unnecessary farmer expense. Calculating DAP first allows us to credit its $18\%$ Nitrogen contribution towards the overall Nitrogen deficit.
+Applying chemical sprays during adverse weather leads to severe economic losses and environmental hazards:
+- **Wash-off Hazard**: If precipitation $> 1.0\text{ mm}$ occurs within hours of spraying, systemic and contact fungicides wash off foliage into soil, wasting expensive inputs.
+- **Drift Hazard**: If wind speed $> 15.0\text{ km/h}$, fine droplet drift deposits toxic chemicals onto non-target crops or water bodies.
+- **Heat Scorch / Delayed Drying**: High temperature ($>36^\circ\text{C}$) accelerates foliar burn, while extreme humidity ($>85\%$) delays drying, fostering fungal spore germination.
+
+AeroCrop.ai queries real-time hourly meteorological data from Open-Meteo, evaluating these rules and generating clear localized status badges (`🟢 Safe to Spray`, `🟡 Caution`, `🔴 Hold Spray`) in Marathi, Hindi, and English.
 
 ---
 
-### Q6.3: What are the ICAR target NPK ratios for major Maharashtra crops?
+### Q6.3: How does the platform connect yield estimation to APMC mandi revenue?
 **Answer:**  
-
-| Crop | Target N (kg/ha) | Target P (kg/ha) | Target K (kg/ha) | Optimal N:P:K Ratio |
-|---|:---:|:---:|:---:|:---:|
-| **Cotton** | 120 | 60 | 60 | 2 : 1 : 1 |
-| **Wheat** | 120 | 60 | 40 | 3 : 1.5 : 1 |
-| **Maize** | 120 | 60 | 40 | 3 : 1.5 : 1 |
-| **Rice** | 100 | 50 | 50 | 2 : 1 : 1 |
-| **Potato** | 120 | 80 | 120 | 1.5 : 1 : 1.5 |
+Raw yield estimation in tons/hectare ($t/\text{ha}$) is often difficult for farmers to interpret commercially. AeroCrop.ai's `MandiService`:
+1. Converts predicted yield into **quintals per acre** ($\text{yield}_{t/\text{ha}} \times 4.047$).
+2. Fetches live APMC modal prices across major Maharashtra trading hubs (Lasalgaon, Jalgaon, Pune, Nagpur, Latur, Kolhapur).
+3. Computes projected gross revenue per acre and per hectare, contrasting it against the official Government of India Minimum Support Price (MSP) benchmark.
 
 ---
 
@@ -264,11 +250,11 @@ DAP is a compound fertilizer containing **both** $18\%$ Nitrogen and $46\%$ Phos
 The software strictly follows the **MVC (Model-View-Controller)** and **Service-Oriented** architecture:
 - **Model Layer (`model/`)**: Neural network definition (`MultiModalAeroCropNet`), dataset loaders (`dataset.py`), and inference engine (`InferenceService`).
 - **Service Layer (`services/`)**: Business and domain logic isolated from HTTP routing:
-  - `disease_service.py`: 38-class knowledge base and treatments.
-  - `fertilizer_service.py`: ICAR NPK deficit and DAP/Urea/MOP calculations.
-  - `weather_service.py`: Open-Meteo REST client with caching for 36 districts.
-- **Controller Layer (`controllers/`)**: FastAPI endpoints (`predict_controller.py`, `weather_controller.py`) orchestrating validation, async weather calls, and response serialization.
-- **View Layer (`views/`)**: Clean HTML5 dashboard with CSS3 glassmorphism and Chart.js for visualization.
+  - `disease_service.py`: 134-class knowledge base, chemical treatments, and organic remedies.
+  - `weather_service.py`: Open-Meteo REST client with caching for 36 districts and spray safety evaluation.
+  - `mandi_service.py`: APMC market prices, modal rates, MSP benchmarks, and revenue forecasting.
+- **Controller Layer (`controllers/`)**: FastAPI endpoints (`predict_controller.py`, `weather_controller.py`, `mandi_controller.py`, `plots_controller.py`) orchestrating validation, async weather calls, and response serialization.
+- **View Layer (`views/`)**: Modern React 18 + Vite frontend with glassmorphic dashboard and fallback legacy SPA views.
 
 ---
 
@@ -276,7 +262,7 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 **Answer:**  
 1. **Singleton Pattern**: In `model/inference.py`, `InferenceService` implements the Singleton pattern (`_instance`). This ensures the $45\text{MB}$ neural network weights are loaded into GPU/RAM only **once** upon startup, preventing memory leaks and high per-request initialization overhead.
 2. **Graceful Degradation / Fallback Pattern**: If model weights are missing or corrupted, the system does not crash; it automatically enters **Smart Mock Mode** with deterministic agronomic heuristics.
-3. **Repository / Knowledge-Base Pattern**: `DiseaseService` encapsulates 38 structured disease records with both chemical (fungicides/bactericides) and organic (neem oil, Trichoderma) treatments.
+3. **Repository / Knowledge-Base Pattern**: `DiseaseService` encapsulates 134 structured disease records with both chemical (fungicides/bactericides) and organic (neem oil, Trichoderma) treatments.
 
 ---
 
@@ -294,28 +280,28 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 ### Q8.1: "Your model achieved 90.82% on PlantVillage. Isn't PlantVillage known for clean lab backgrounds that fail in real farm conditions?"
 **Answer (Defense Strategy):**  
 > *"That is an accurate observation. PlantVillage images often feature uniform laboratory backgrounds. To address this domain shift and improve real-world generalization, we implemented strong data augmentations during training: random color jittering ($\pm 30\%$ brightness, contrast, and saturation), random rotations, and vertical/horizontal flips.*  
-> *Furthermore, our architecture fuses live tabular telemetry (soil NPK, temperature, humidity, rainfall). Even if visual cues are ambiguous due to complex field lighting, the tabular encoder's microclimate features provide strong regularization to guide classification and yield forecasting."*
+> *Furthermore, our architecture fuses live tabular telemetry (temperature, humidity, rainfall). Even if visual cues are ambiguous due to complex field lighting, the tabular encoder's microclimate features provide strong regularization to guide classification and yield forecasting."*
 
 ---
 
 ### Q8.2: "What happens if a farmer uploads an out-of-distribution (OOD) image, like a picture of a car or a weed?"
 **Answer (Defense Strategy):**  
-> *"Currently, the final layer produces Softmax probabilities across the 38 classes. If an OOD image is passed, the prediction entropy is typically high (i.e., the maximum confidence score drops significantly below 50–60%).*  
+> *"Currently, the final layer produces Softmax probabilities across the 134 classes. If an OOD image is passed, the prediction entropy is typically high (i.e., the maximum confidence score drops significantly below 40–50%).*  
 > *In our roadmap, we include an Out-of-Distribution (OOD) rejection filter using an entropy threshold or a leaf segmentation pre-filter (such as YOLOv8-seg) to reject non-leaf images before running inference."*
 
 ---
 
 ### Q8.3: "Why did you use synthetic/proxy pairing in MultiModalDataset instead of true paired field data?"
 **Answer (Defense Strategy):**  
-> *"In real-world precision agriculture, simultaneous publicly available datasets containing paired high-resolution disease leaf photos AND field-level soil sensor NPK and yield measurements for identical plants are extremely scarce globally.*  
+> *"In real-world precision agriculture, simultaneous publicly available datasets containing paired high-resolution disease leaf photos AND field-level climate and yield measurements for identical plants are extremely scarce globally.*  
 > *To solve this data scarcity, we adopted a conditioned multi-modal training strategy: we paired real leaf pathology images with real historical crop yield and climate distributions (FAO dataset) conditioned on crop taxonomy. This enables the shared latent space to learn joint representations while preserving domain fidelity."*
 
 ---
 
 ### Q8.4: "Why is Yield Prediction an output of a single leaf image? How can a leaf tell the entire field's yield?"
 **Answer (Defense Strategy):**  
-> *"The leaf image alone does not dictate yield. The yield prediction head operates on the **fused 128-dimensional embedding**, which combines both the visual feature vector ($512$-dim) and the tabular microclimate/soil vector ($64$-dim).*  
-> *Agronomically, harvest yield is a function of crop health (disease severity captured by the vision encoder) and resource availability (soil NPK + temperature, humidity, rainfall captured by the tabular encoder). The model learns this multi-factorial interaction."*
+> *"The leaf image alone does not dictate yield. The yield prediction head operates on the **fused 128-dimensional embedding**, which combines both the visual feature vector ($512$-dim) and the tabular microclimate vector ($64$-dim).*  
+> *Agronomically, harvest yield is a function of crop health (disease severity captured by the vision encoder) and weather conditions (temperature, humidity, rainfall captured by the tabular encoder). The model learns this multi-factorial interaction."*
 
 ---
 
@@ -325,7 +311,6 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 **Answer:**  
 1. **Foliar-Only Diagnostics**: It currently diagnoses diseases displaying foliar (leaf) symptoms; vascular root rots or subterranean pests without distinct leaf chlorosis are harder to detect.
 2. **Internet Dependency for Weather**: Real-time district weather relies on active internet access for the Open-Meteo REST API (mitigated by fallback defaults).
-3. **Manual Soil NPK Input**: Requires the farmer or agronomist to enter soil test values (e.g., from Soil Health Cards).
 
 ---
 
@@ -334,7 +319,6 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 1. **Edge Deployment & Quantization**: Quantizing the PyTorch model to **ONNX / TensorRT / INT8** format for offline inference on low-cost edge hardware (Raspberry Pi / NVIDIA Jetson) or mobile devices (TFLite).
 2. **Object Detection / Localization**: Integrating YOLOv9 or Mask R-CNN to localize multiple disease lesions and bounding boxes across high-resolution drone/UAV canopy imagery.
 3. **Multilingual Voice Bot**: Integrating Whisper ASR and regional LLMs (Marathi, Hindi) to allow hands-free voice-guided diagnosis for vernacular farmers.
-4. **IoT Soil Sensor Integration**: Connecting direct LoRaWAN / ESP32 soil NPK optical sensors to eliminate manual data entry.
 
 ---
 
@@ -343,11 +327,11 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 | Parameter | AeroCrop.ai Value |
 |---|---|
 | **Vision Backbone** | ResNet-18 (512-dim embedding) |
-| **Tabular Backbone** | 3-Layer MLP `[6 -> 64 -> 64 -> 64 -> 64]` |
+| **Tabular Backbone** | 3-Layer MLP `[3 -> 64 -> 64 -> 64 -> 64]` (Temp, Humidity, Rainfall) |
 | **Shared Latent Dimension** | 128-dim embedding |
 | **Total Parameters** | $\approx 11.3\text{ Million}$ |
 | **Weight File Size** | $45.1\text{ MB}$ (`model/aerocrop_weights.pth`) |
-| **Disease Classes** | 38 Classes (PlantVillage Taxonomy) |
+| **Disease Classes** | 134 Classes across 11 Field Crops (≥10 classes each) |
 | **Target Region** | Maharashtra (36 districts supported) |
 | **Best Val Accuracy (Disease)** | **90.82%** |
 | **Best Val RMSE (Yield)** | **6.72 t/ha** |
@@ -364,13 +348,13 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 
 ## 11. Farmer-Centric Extensions & Practical Field Operations (Viva Q&A)
 
-### Q11.1: "Most precision ag apps fail on the ground because farmers don't buy chemicals in kg/ha. How does your system bridge this?"
+### Q11.1: "Most precision ag apps fail on the ground because they only output an academic label. How does your system provide actionable value?"
 **Answer:**  
-> *"That is a fundamental usability barrier. Farmers purchase straight fertilizers in standardized **50 kg commercial bags** sold under Government of India (GoI) Nutrient Based Subsidy (NBS) prices.  
-> AeroCrop.ai implements practical commercial stoichiometry:  
-> 1. It converts chemical deficits into integer 50 kg bags: $\text{Bags} = \lceil \text{Deficit} / 50 \rceil$.  
-> 2. It incorporates statutory subsidized prices (Urea: ₹267/bag, DAP: ₹1,350/bag, MOP: ₹1,700/bag).  
-> 3. It provides a real-time area scaler converting between **Hectares, Acres (एकर), and Gunthas (गुंठा)** so a 2.5-acre farmer immediately knows their exact purchase cost in ₹."*
+> *"That is a fundamental usability barrier. Knowing a leaf has 'Cercospora Leaf Spot' doesn't help a farmer unless they know what to do next.  
+> AeroCrop.ai provides complete end-to-end actionable guidance:  
+> 1. It prescribes specific registered chemical treatments with exact dosages (e.g., Carbendazim 12% + Mancozeb 63% WP at 2 g/L).  
+> 2. It pairs chemical remedies with eco-friendly organic biological controls (Neem oil, Trichoderma viride) and cultural management practices.  
+> 3. It checks real-time weather conditions to advise if spraying is safe today or if rain/wind hazards exist."*
 
 ---
 
@@ -400,12 +384,11 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 
 ---
 
-### Q11.5: "In rural India, over 80% of smallholder farmers do not have soil test reports (Soil Health Cards). How does your system operate without requiring farmers to enter soil NPK values?"
+### Q11.5: "In rural India, over 80% of smallholder farmers do not have soil test reports (Soil Health Cards). How does your system operate in real-world rural conditions?"
 **Answer:**  
-> *"Requiring rural farmers to enter numerical soil N, P, and K values is a major adoption hurdle that leads to user drop-offs or arbitrary guesswork. We engineered AeroCrop.ai with a **Frictionless Photo-First Architecture**:  
-> 1. **Zero-Friction Field Diagnosis**: The farmer simply uploads a leaf photo, selects the crop, and chooses their district. The platform immediately produces disease diagnosis, spray safety indices, and APMC market intelligence in seconds.  
-> 2. **ICAR Growth-Stage Fertilizer Schedule (Package of Practices - PoP)**: Rather than demanding lab soil data, the platform prescribes official agronomic nutrient schedules split across key phenological growth stages: **Basal Application at sowing** (100% P & K + 33% N), **Vegetative top-dressing at 30–35 DAS** (33% N), and **Flowering top-dressing at 60–65 DAS** (34% N).  
-> 3. **Neural Network Weights Preservation**: The backend inference layer automatically applies regional ICAR median soil baselines for the chosen district and crop under the hood. This guarantees that the multi-modal neural network (which expects a 6-dimensional tabular vector) runs seamlessly with its full **90.82% validation accuracy** without shape mismatches or retraining degradation.  
-> 4. **Flexible Optional Inputs**: If an advanced farmer or extension officer has an active Soil Health Card, they can still provide precise NPK values to receive exact deficit-correcting chemical stoichiometry."*
+> *"Requiring rural farmers to enter numerical soil N, P, and K values creates a massive adoption hurdle that leads to user drop-offs or guesswork. We designed AeroCrop.ai to have **ZERO dependency on soil testing or NPK values**:  
+> 1. **Frictionless Photo-Only Field Submission**: The farmer simply uploads a leaf photo, selects the crop, and chooses their district.  
+> 2. **Pure Meteorological Telemetry**: The tabular branch uses 3 live environmental features—ambient temperature, relative humidity, and rainfall—fetched automatically from Open-Meteo GPS coordinates.  
+> 3. **Seamless Multi-Modal Operation**: The model executes its dual-head forward pass with 0 manual tabular entry required from the farmer, delivering immediate disease diagnosis, spray safety advisories, and yield forecasts in seconds."*
 
 

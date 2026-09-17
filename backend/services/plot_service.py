@@ -112,9 +112,6 @@ class PlotService:
                 "area_acres": p.get("area_acres"),
                 "sowing_date": p.get("sowing_date"),
                 "soil_type": p.get("soil_type"),
-                "baseline_N": p.get("baseline_N"),
-                "baseline_P": p.get("baseline_P"),
-                "baseline_K": p.get("baseline_K"),
                 "notes": p.get("notes"),
                 "created_at": p_created_iso,
                 "total_diagnoses": total_diagnoses,
@@ -141,17 +138,14 @@ class PlotService:
         area_acres: float = 1.0,
         sowing_date: Optional[date] = None,
         soil_type: str = "Medium Black",
-        baseline_N: Optional[float] = None,
-        baseline_P: Optional[float] = None,
-        baseline_K: Optional[float] = None,
         notes: Optional[str] = None,
     ) -> Tuple[Optional[FarmPlot], Optional[str]]:
         """
         Create a new farm plot for a farmer with a designated crop in MongoDB.
         """
         crop_clean = crop_type.strip().lower()
-        if crop_clean not in config.CROP_NPK_TARGETS:
-            supported = ", ".join(config.CROP_NPK_TARGETS.keys())
+        if crop_clean not in config.SUPPORTED_CROPS:
+            supported = ", ".join(config.SUPPORTED_CROPS)
             return None, f"Crop '{crop_type}' is not supported. Supported crops: {supported}"
 
         name_clean = plot_name.strip()
@@ -160,11 +154,6 @@ class PlotService:
 
         if area_acres <= 0:
             return None, "Plot area must be greater than 0 acres."
-
-        target = config.CROP_NPK_TARGETS[crop_clean]
-        b_N = baseline_N if baseline_N is not None else float(target["N"] * 0.5)
-        b_P = baseline_P if baseline_P is not None else float(target["P"] * 0.5)
-        b_K = baseline_K if baseline_K is not None else float(target["K"] * 0.5)
 
         new_id = await get_next_sequence("plot_id")
         now = datetime.now(timezone.utc)
@@ -178,9 +167,6 @@ class PlotService:
             "area_acres": float(area_acres),
             "sowing_date": sowing_str,
             "soil_type": soil_type.strip() if soil_type else "Medium Black",
-            "baseline_N": float(b_N),
-            "baseline_P": float(b_P),
-            "baseline_K": float(b_K),
             "notes": notes.strip() if notes else None,
             "created_at": now,
         }
@@ -206,9 +192,6 @@ class PlotService:
         area_acres: Optional[float] = None,
         sowing_date: Optional[date] = None,
         soil_type: Optional[str] = None,
-        baseline_N: Optional[float] = None,
-        baseline_P: Optional[float] = None,
-        baseline_K: Optional[float] = None,
         notes: Optional[str] = None,
     ) -> Tuple[Optional[FarmPlot], Optional[str]]:
         """Update an existing farm plot in MongoDB."""
@@ -219,7 +202,7 @@ class PlotService:
         updates = {}
         if crop_type is not None:
             crop_clean = crop_type.strip().lower()
-            if crop_clean not in config.CROP_NPK_TARGETS:
+            if crop_clean not in config.SUPPORTED_CROPS:
                 return None, f"Crop '{crop_type}' is not supported."
             updates["crop_type"] = crop_clean
             plot.crop_type = crop_clean
@@ -240,16 +223,6 @@ class PlotService:
         if soil_type is not None:
             updates["soil_type"] = soil_type.strip()
             plot.soil_type = updates["soil_type"]
-
-        if baseline_N is not None:
-            updates["baseline_N"] = float(baseline_N)
-            plot.baseline_N = updates["baseline_N"]
-        if baseline_P is not None:
-            updates["baseline_P"] = float(baseline_P)
-            plot.baseline_P = updates["baseline_P"]
-        if baseline_K is not None:
-            updates["baseline_K"] = float(baseline_K)
-            plot.baseline_K = updates["baseline_K"]
 
         if notes is not None:
             updates["notes"] = notes.strip() or None

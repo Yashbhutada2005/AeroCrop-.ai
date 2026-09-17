@@ -5,10 +5,10 @@ Architecture:
   Visual Encoder  : ResNet-18 backbone  → 512-dim vector
   Tabular Encoder : 3-Layer MLP         → 64-dim vector
   Fusion Layer    : Concat (576-dim) → Linear → BN → ReLU → 128-dim embedding
-  Task Head 1     : Disease Classification (38 classes)
+  Task Head 1     : Disease Classification (134 classes across 11 crops)
   Task Head 2     : Yield Regression (t/ha)
 
-Dataset Taxonomy: PlantVillage 38-class agricultural pathology dataset
+Dataset Taxonomy: Multi-Source Agricultural Pathology 134-class dataset across 11 field crops
 """
 
 import torch
@@ -21,14 +21,14 @@ import config
 
 class TabularEncoder(nn.Module):
     """
-    3-Layer MLP that encodes soil (N, P, K) + weather (temp, humidity, rainfall)
+    3-Layer MLP that encodes weather telemetry (temp, humidity, rainfall)
     into a compact latent vector.
 
-    Input  : (batch, 6)   — [N, P, K, temperature, humidity, rainfall]
+    Input  : (batch, 3)   — [temperature, humidity, rainfall]
     Output : (batch, 64)
     """
 
-    def __init__(self, input_dim: int = 6, hidden_dims: list = None, output_dim: int = 64):
+    def __init__(self, input_dim: int = 3, hidden_dims: list = None, output_dim: int = 64):
         super().__init__()
         if hidden_dims is None:
             hidden_dims = [64, 64, 64]
@@ -57,17 +57,17 @@ class MultiModalAeroCropNet(nn.Module):
 
     Inputs:
       - image  : (batch, 3, 224, 224)  RGB leaf photograph
-      - tabular: (batch, 6)            [N, P, K, temp, humidity, rainfall]
+      - tabular: (batch, 3)            [temperature, humidity, rainfall]
 
     Outputs:
-      - disease_logits : (batch, 38)   Raw logits for disease classification
+      - disease_logits : (batch, 134)  Raw logits for disease classification
       - yield_pred     : (batch, 1)    Predicted crop yield in tons/hectare
     """
 
     def __init__(
         self,
-        num_classes: int = 38,
-        tabular_input_dim: int = 6,
+        num_classes: int = 134,
+        tabular_input_dim: int = 3,
         pretrained: bool = False,
     ):
         super().__init__()
@@ -104,8 +104,11 @@ class MultiModalAeroCropNet(nn.Module):
             nn.Linear(128, 32),
             nn.ReLU(inplace=True),
             nn.Linear(32, 1),
-            nn.ReLU(inplace=True),   # Yield is always non-negative
+            nn.Softplus(beta=1.0),   # Smooth, strictly positive non-negative yield (prevents dying ReLU gradient collapse)
         )
+        # Initialize bias so initial yield predictions start in a healthy agronomic range (~5-10 t/ha)
+        with torch.no_grad():
+            self.yield_head[2].bias.fill_(5.0)
 
     def forward(
         self, image: torch.Tensor, tabular: torch.Tensor
@@ -113,7 +116,7 @@ class MultiModalAeroCropNet(nn.Module):
         """
         Args:
             image   : Tensor (B, 3, 224, 224)
-            tabular : Tensor (B, 6)  — normalised [N, P, K, temp, hum, rain]
+            tabular : Tensor (B, 3)  — normalised [temp, hum, rain]
         Returns:
             (disease_logits, yield_pred)
         """
@@ -129,7 +132,7 @@ class MultiModalAeroCropNet(nn.Module):
         embedding = self.fusion(fused)          # (B, 128)
 
         # Task outputs
-        disease_logits = self.disease_head(embedding)   # (B, 38)
+        disease_logits = self.disease_head(embedding)   # (B, num_classes)
         yield_pred     = self.yield_head(embedding)     # (B, 1)
 
         return disease_logits, yield_pred

@@ -18,7 +18,8 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn.functional as F
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torchvision import transforms
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,27 +39,27 @@ IMAGE_TRANSFORM = transforms.Compose([
 ])
 
 
-# ─── Crop to Disease Class Mapping (Aligned with model/classes.json) ────────
+# ─── Crop to Disease Class Mapping (Aligned with model/classes.json — 134 classes) ───
 CROP_TO_CLASSES: dict[str, list[int]] = {
-    "banana": [0, 1, 2, 3],
-    "corn": [4, 5, 6, 7],
-    "maize": [4, 5, 6, 7],
-    "cotton": [8, 9],
-    "citrus": [10],
-    "orange": [10],
-    "potato": [11, 12, 13],
-    "rice": [14, 15, 16, 17, 18],
-    "paddy": [14, 15, 16, 17, 18],
-    "soybean": [19],
-    "sugarcane": [20, 21, 22, 23, 24],
-    "tomato": [25, 26, 27, 28, 29, 30, 31, 32, 33, 34],
-    "turmeric": [35, 36, 37, 38],
-    "haldi": [35, 36, 37, 38],
-    "wheat": [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
+    "banana":    list(range(0, 12)),     # 0..11   (12 classes)
+    "corn":      list(range(12, 23)),    # 12..22  (11 classes)
+    "maize":     list(range(12, 23)),    # 12..22  (11 classes)
+    "cotton":    list(range(23, 38)),    # 23..37  (15 classes)
+    "citrus":    list(range(38, 51)),    # 38..50  (13 classes)
+    "orange":    list(range(38, 51)),    # 38..50  (13 classes)
+    "potato":    list(range(51, 69)),    # 51..68  (18 classes)
+    "rice":      list(range(69, 80)),    # 69..79  (11 classes)
+    "paddy":     list(range(69, 80)),    # 69..79  (11 classes)
+    "soybean":   list(range(80, 91)),    # 80..90  (11 classes)
+    "sugarcane": list(range(91, 103)),   # 91..102 (12 classes)
+    "tomato":    list(range(103, 113)),  # 103..112 (10 classes)
+    "turmeric":  list(range(113, 123)),  # 113..122 (10 classes)
+    "haldi":     list(range(113, 123)),  # 113..122 (10 classes)
+    "wheat":     list(range(123, 134)),  # 123..133 (11 classes)
 }
 
-# ─── Supported Agricultural Crops in Active Scope (All 50 classes) ──────────
-SUPPORTED_CROP_CLASSES: list[int] = list(range(50))
+# ─── Supported Agricultural Crops in Active Scope (All 134 classes) ──────────
+SUPPORTED_CROP_CLASSES: list[int] = list(range(134))
 
 
 
@@ -105,7 +106,7 @@ class InferenceService:
             except Exception:
                 self.classes = []
 
-        num_classes = len(self.classes) if self.classes else getattr(config, "NUM_DISEASE_CLASSES", 50)
+        num_classes = len(self.classes) if self.classes else getattr(config, "NUM_DISEASE_CLASSES", 134)
 
         if os.path.exists(resolved_path):
             try:
@@ -150,20 +151,19 @@ class InferenceService:
             ).to(self.device)
 
     @staticmethod
-    def _normalise_tabular(N: float, P: float, K: float,
-                           temperature: float, humidity: float,
-                           rainfall: float) -> torch.Tensor:
-        """Z-score normalise raw tabular inputs using constants from config."""
+    def _normalise_tabular(
+        temperature: float,
+        humidity: float,
+        rainfall: float,
+    ) -> torch.Tensor:
+        """Z-score normalise raw weather tabular inputs using constants from config."""
         norm = config.TABULAR_NORM
         raw = [
-            (N          - norm["N"]["mean"])           / norm["N"]["std"],
-            (P          - norm["P"]["mean"])           / norm["P"]["std"],
-            (K          - norm["K"]["mean"])           / norm["K"]["std"],
             (temperature - norm["temperature"]["mean"]) / norm["temperature"]["std"],
             (humidity   - norm["humidity"]["mean"])    / norm["humidity"]["std"],
             (rainfall   - norm["rainfall"]["mean"])    / norm["rainfall"]["std"],
         ]
-        return torch.tensor(raw, dtype=torch.float32).unsqueeze(0)  # (1, 6)
+        return torch.tensor(raw, dtype=torch.float32).unsqueeze(0)  # (1, 3)
 
     # ── Public API ───────────────────────────────────────────────────────────
 
@@ -174,28 +174,18 @@ class InferenceService:
         humidity: float,
         rainfall: float,
         crop: str,
-        N: float | None = None,
-        P: float | None = None,
-        K: float | None = None,
     ) -> dict[str, Any]:
         """
-        Run full multi-modal inference.
-        N, P, K are optional. When omitted by the farmer, standard regional
-        soil medians are used, maintaining full compatibility with the trained model.
+        Run full multi-modal inference (leaf photograph + weather telemetry).
         """
-        target = config.CROP_NPK_TARGETS.get(crop.lower(), {"N": 100.0, "P": 50.0, "K": 50.0})
-        n_val = float(N if N is not None else target.get("N", 100.0) * 1.0)
-        p_val = float(P if P is not None else target.get("P", 50.0) * 1.0)
-        k_val = float(K if K is not None else target.get("K", 50.0) * 1.0)
-
         if self.mock_mode:
-            return self._mock_predict(n_val, p_val, k_val, temperature, humidity, rainfall, crop)
+            return self._mock_predict(temperature, humidity, rainfall, crop)
 
         # ── Real inference ────────────────────────────────────────────────
         from io import BytesIO
         img = Image.open(BytesIO(image_bytes)).convert("RGB")
         img_tensor = IMAGE_TRANSFORM(img).unsqueeze(0).to(self.device)       # (1,3,224,224)
-        tab_tensor = self._normalise_tabular(n_val, p_val, k_val, temperature, humidity, rainfall).to(self.device)
+        tab_tensor = self._normalise_tabular(temperature, humidity, rainfall).to(self.device)
 
         with torch.no_grad():
             logits, yield_raw = self.model(img_tensor, tab_tensor)
@@ -205,8 +195,11 @@ class InferenceService:
         global_probs = F.softmax(logits / T, dim=1).squeeze(0).cpu().tolist()
         crop_lower = crop.lower().strip() if crop else "auto"
 
+        num_logits = logits.size(1)
         if crop_lower != "auto" and crop_lower in CROP_TO_CLASSES:
-            candidates = CROP_TO_CLASSES[crop_lower]
+            candidates = [c for c in CROP_TO_CLASSES[crop_lower] if c < num_logits]
+            if not candidates:
+                candidates = list(range(num_logits))
             cand_tensor = torch.tensor(candidates, device=logits.device)
             sub_logits = logits[0, cand_tensor]
             sub_probs = F.softmax(sub_logits / T, dim=0).cpu().tolist()
@@ -216,21 +209,49 @@ class InferenceService:
             probs = global_probs
         elif crop_lower == "auto":
             # In auto-detect mode, constrain prediction to supported agricultural project crops
-            cand_tensor = torch.tensor(SUPPORTED_CROP_CLASSES, device=logits.device)
+            candidates = [c for c in SUPPORTED_CROP_CLASSES if c < num_logits]
+            if not candidates:
+                candidates = list(range(num_logits))
+            cand_tensor = torch.tensor(candidates, device=logits.device)
             sub_logits = logits[0, cand_tensor]
             sub_probs = F.softmax(sub_logits / T, dim=0).cpu().tolist()
             best_sub_idx = int(torch.argmax(sub_logits).item())
-            cls_idx = SUPPORTED_CROP_CLASSES[best_sub_idx]
+            cls_idx = candidates[best_sub_idx]
             conf = float(sub_probs[best_sub_idx])
             probs = global_probs
         else:
             # Fallback direct multi-class prediction
             direct_cls = int(torch.argmax(logits, dim=1).item())
             cls_idx = direct_cls
-            conf = float(global_probs[cls_idx])
+            conf = float(global_probs[cls_idx]) if cls_idx < len(global_probs) else 0.0
             probs = global_probs
 
         yield_val = float(yield_raw.squeeze().item())
+
+        # Agronomic safety bounds per crop (t/ha) to prevent anomalous regression outputs
+        MAX_CROP_YIELDS = {
+            "sugarcane": 140.0,
+            "banana": 90.0,
+            "potato": 45.0,
+            "tomato": 50.0,
+            "onion": 40.0,
+            "maize": 15.0,
+            "rice": 12.0,
+            "wheat": 8.0,
+            "cotton": 6.0,
+            "soybean": 5.0,
+            "turmeric": 15.0,
+        }
+        effective_crop = crop_lower
+        if effective_crop not in MAX_CROP_YIELDS and self.classes and cls_idx < len(self.classes):
+            cls_name = self.classes[cls_idx]
+            prefix = cls_name.split("___")[0].lower()
+            if "corn" in prefix:
+                prefix = "maize"
+            effective_crop = prefix
+
+        max_cap = MAX_CROP_YIELDS.get(effective_crop, 50.0)
+        yield_val = max(0.1, min(yield_val, max_cap))
 
         return {
             "disease_class":  cls_idx,
@@ -243,9 +264,6 @@ class InferenceService:
 
     @staticmethod
     def _mock_predict(
-        N: float = 60.0,
-        P: float = 30.0,
-        K: float = 30.0,
         temperature: float = 25.0,
         humidity: float = 60.0,
         rainfall: float = 0.0,
@@ -253,12 +271,12 @@ class InferenceService:
     ) -> dict[str, Any]:
         """
         Deterministic, agronomically-aware mock inference used when weights
-        are not available. Results vary meaningfully based on soil/weather inputs.
+        are not available. Results vary meaningfully based on weather inputs.
         """
         crop_lower = crop.lower().strip() if crop else "auto"
-        fingerprint = int(abs(N * 3.1 + P * 7.3 + K * 5.7 + temperature * 2.3 + humidity * 1.7 + rainfall * 4.1))
+        fingerprint = int(abs(temperature * 7.3 + humidity * 3.7 + rainfall * 5.1))
 
-        num_classes = getattr(config, "NUM_DISEASE_CLASSES", 38)
+        num_classes = getattr(config, "NUM_DISEASE_CLASSES", 134)
         if crop_lower != "auto" and crop_lower in CROP_TO_CLASSES:
             candidates = CROP_TO_CLASSES[crop_lower]
             seed_val = candidates[fingerprint % len(candidates)]
@@ -274,18 +292,18 @@ class InferenceService:
         probs = probs_raw.tolist()
         conf  = float(probs_raw[seed_val])
 
-        # Agronomic yield estimate: base + soil contribution + weather penalty
+        # Agronomic yield estimate: base yield scaled by weather suitability
         base_yield = {
             "tomato": 32.0, "orange": 24.0, "apple": 22.0, "grape": 20.0,
             "pepper": 18.0, "strawberry": 16.0, "peach": 16.0, "squash": 22.0,
             "cherry": 12.0, "blueberry": 9.0, "raspberry": 8.0, "soybean": 2.2,
             "maize": 4.5, "potato": 20.0, "cotton": 2.0, "wheat": 3.2, "rice": 4.0,
+            "sugarcane": 85.0, "banana": 48.0, "turmeric": 6.5, "onion": 18.0,
         }
         base = base_yield.get(crop_lower, 25.0)
-        soil_score   = min((N / 120 + P / 60 + K / 60) / 3.0, 1.0)
-        weather_pen  = 1.0 - abs(temperature - 28) * 0.01 - max(0, rainfall - 15) * 0.005
-        weather_pen  = max(0.5, min(1.0, weather_pen))
-        yield_val    = round(base * soil_score * weather_pen, 2)
+        weather_pen  = 1.0 - abs(temperature - 28) * 0.01 - max(0, rainfall - 15) * 0.005 - max(0, abs(humidity - 65) - 20) * 0.003
+        weather_pen  = max(0.4, min(1.0, weather_pen))
+        yield_val    = round(base * weather_pen, 2)
 
         return {
             "disease_class":  seed_val,

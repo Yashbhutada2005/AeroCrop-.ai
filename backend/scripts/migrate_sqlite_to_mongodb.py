@@ -3,7 +3,7 @@ AeroCrop.ai — SQLite to MongoDB Data Migration & Analysis Enrichment Utility
 
 Extracts existing records from SQLite (`data/aerocrop.db`) and migrates them
 into MongoDB collections (`users`, `farm_plots`, `analyses`), enriching historical
-diagnoses with full treatment recommendations and fertilizer calculations.
+diagnoses with full treatment recommendations, weather advisories, and yield forecasts.
 
 Run with:
     python backend/scripts/migrate_sqlite_to_mongodb.py
@@ -26,7 +26,6 @@ for p in [PROJECT_ROOT, BACKEND_DIR]:
 from motor.motor_asyncio import AsyncIOMotorClient
 import config
 from services.disease_service import DiseaseService
-from services.fertilizer_service import FertilizerService
 from services.mandi_service import MandiService
 
 
@@ -79,6 +78,9 @@ async def migrate():
         pid = p_dict["id"]
         if pid > max_plot_id:
             max_plot_id = pid
+        p_dict.pop("baseline_N", None)
+        p_dict.pop("baseline_P", None)
+        p_dict.pop("baseline_K", None)
         if p_dict.get("created_at") and isinstance(p_dict["created_at"], str):
             try:
                 p_dict["created_at"] = datetime.fromisoformat(p_dict["created_at"])
@@ -127,20 +129,6 @@ async def migrate():
             "quintals_per_acre": round(yield_val * 4.047, 2),
         }
 
-        soil_doc = {
-            "N": d_dict.get("soil_N"),
-            "P": d_dict.get("soil_P"),
-            "K": d_dict.get("soil_K"),
-            "tested": d_dict.get("soil_N") is not None,
-        }
-
-        fertilizer_doc = FertilizerService.calculate(
-            crop=crop,
-            soil_N=d_dict.get("soil_N"),
-            soil_P=d_dict.get("soil_P"),
-            soil_K=d_dict.get("soil_K"),
-        )
-
         weather_doc = {
             "temperature": float(d_dict.get("weather_temp", 0.0)),
             "humidity": float(d_dict.get("weather_hum", 0.0)),
@@ -175,8 +163,6 @@ async def migrate():
             "disease": disease_doc,
             "yield": yield_doc,
             "yield_data": yield_doc,
-            "soil": soil_doc,
-            "fertilizer": fertilizer_doc,
             "weather": weather_doc,
             "mandi": None,
             "system_telemetry": {

@@ -62,7 +62,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ result }) => {
         <div className="metric-icon" aria-hidden="true">🌾</div>
         <div className="metric-body">
           <p className="metric-label">{t('predicted_yield')}</p>
-          <p className="metric-value">{yield_t_ha} t/ha</p>
+          <p className="metric-value">{(yield_t_ha * 4.047).toFixed(1)} Quintal / Acre</p>
           <p className="metric-sub">{t('for_crop')} {crop}</p>
         </div>
       </div>

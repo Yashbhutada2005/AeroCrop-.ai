@@ -5,7 +5,7 @@ export function printAdvisoryReport(
   user: User | null,
   isPmfbyReport: boolean = false
 ): void {
-  const { disease, fertilizer: fert, crop, district, yield_t_ha, weather, mock_mode, image_url } = result;
+  const { disease, crop, district, yield_t_ha, weather, mock_mode, image_url } = result;
   const now = new Date().toLocaleString('en-IN');
   const farmerName = user ? user.full_name : 'Registered Farmer';
   const farmerPhone = user?.phone_number || 'N/A';
@@ -69,28 +69,20 @@ export function printAdvisoryReport(
     <tr><th>AI Confidence Level</th><td>${disease.confidence.toFixed(1)}%</td></tr>
     <tr><th>Severity Rating</th><td><span class="badge ${disease.severity === 'Critical' || disease.severity === 'High' ? 'badge-danger' : ''}">${disease.severity}</span></td></tr>
     <tr><th>Pathological Description</th><td>${disease.description}</td></tr>
-    <tr><th>Expected Harvest Yield</th><td><strong>${yield_t_ha} t/ha</strong> (${(yield_t_ha * 4.047).toFixed(1)} quintals/acre)</td></tr>
+    <tr><th>Expected Harvest Yield</th><td><strong>${(yield_t_ha * 4.047).toFixed(1)} Quintal / Acre</strong></td></tr>
   </table>
 
   <h2>💊 Agronomic Prescription &amp; Containment Protocol</h2>
   <div class="row">
     <div class="cell">
-      <strong>Recommended Chemical Spray:</strong>
+      <strong>Recommended Chemical Spray:</strong> <span style="font-size:0.85em; color:#b91c1c; font-weight:700;">(Est. Cost: ${disease.chemical_cost || (disease.is_healthy ? '₹0 / Acre' : '₹550 – ₹900 / Acre')})</span>
       <ul>${(disease.chemical_treatment.length ? disease.chemical_treatment : ['Standard monitoring only.']).map(t => `<li>${t}</li>`).join('')}</ul>
     </div>
     <div class="cell">
-      <strong>Biological / Organic Remedy:</strong>
+      <strong>Biological / Organic Remedy:</strong> <span style="font-size:0.85em; color:#15803d; font-weight:700;">(Est. Cost: ${disease.organic_cost || (disease.is_healthy ? '₹0 / Acre' : '₹200 – ₹450 / Acre')})</span>
       <ul>${(disease.organic_treatment.length ? disease.organic_treatment : ['None required.']).map(t => `<li>${t}</li>`).join('')}</ul>
     </div>
   </div>
-
-  <h2>🧬 Soil Nutrient &amp; Commercial Fertilizer Allocation</h2>
-  <table>
-    <tr><th>Fertilizer</th><th>Deficit Dose (kg/ha)</th><th>Standard 50kg Bags / ha</th><th>Subsidized Approx Cost</th></tr>
-    <tr><td>Urea (46% N)</td><td>${fert.fertilizers.Urea} kg</td><td>${Math.ceil(fert.fertilizers.Urea / 50)} bags</td><td>₹${Math.ceil(fert.fertilizers.Urea / 50) * 267}</td></tr>
-    <tr><td>DAP (18% N, 46% P)</td><td>${fert.fertilizers.DAP} kg</td><td>${Math.ceil(fert.fertilizers.DAP / 50)} bags</td><td>₹${Math.ceil(fert.fertilizers.DAP / 50) * 1350}</td></tr>
-    <tr><td>MOP (60% K)</td><td>${fert.fertilizers.MOP} kg</td><td>${Math.ceil(fert.fertilizers.MOP / 50)} bags</td><td>₹${Math.ceil(fert.fertilizers.MOP / 50) * 1700}</td></tr>
-  </table>
 
   <h2>🌡️ Microclimate Telemetry</h2>
   <table>
@@ -113,8 +105,8 @@ export function printAdvisoryReport(
   ` : ''}
 
   <div class="footer">
-    Verified report generated under ICAR nutrient guidelines and computer vision leaf pathology inference.<br>
-    Govt of India NBS fertilizer pricing benchmarks applied. For certified claims, submit to nearest Krishi Seva Kendra / KVK office.<br>
+    Verified report generated under computer vision leaf pathology inference and microclimate telemetry.<br>
+    For certified claims, submit to nearest Krishi Seva Kendra / KVK office.<br>
     Agronomic &amp; Platform Support: <a href="mailto:support@devanshupatil.tech" style="color: #15803d; text-decoration: none; font-weight: 600;">support@devanshupatil.tech</a>
   </div>
 </body>

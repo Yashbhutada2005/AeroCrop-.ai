@@ -27,9 +27,6 @@ export const EditPlotModal: React.FC<EditPlotModalProps> = ({
   const [areaAcres, setAreaAcres] = useState(2.5);
   const [soilType, setSoilType] = useState('Medium Black');
   const [sowingDate, setSowingDate] = useState('');
-  const [baselineN, setBaselineN] = useState<number | ''>('');
-  const [baselineP, setBaselineP] = useState<number | ''>('');
-  const [baselineK, setBaselineK] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,9 +37,6 @@ export const EditPlotModal: React.FC<EditPlotModalProps> = ({
       setAreaAcres(plot.area_acres || 1.0);
       setSoilType(plot.soil_type || 'Medium Black');
       setSowingDate(plot.sowing_date ? plot.sowing_date.split('T')[0] : '');
-      setBaselineN(plot.baseline_N ?? '');
-      setBaselineP(plot.baseline_P ?? '');
-      setBaselineK(plot.baseline_K ?? '');
       setNotes(plot.notes || '');
     }
   }, [plot]);
@@ -64,9 +58,6 @@ export const EditPlotModal: React.FC<EditPlotModalProps> = ({
         area_acres: Number(areaAcres),
         soil_type: soilType,
         sowing_date: sowingDate || null,
-        baseline_N: baselineN === '' ? null : Number(baselineN),
-        baseline_P: baselineP === '' ? null : Number(baselineP),
-        baseline_K: baselineK === '' ? null : Number(baselineK),
         notes: notes.trim() || null,
       });
 
@@ -169,41 +160,6 @@ export const EditPlotModal: React.FC<EditPlotModalProps> = ({
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="edit-plot-n">Baseline N (kg/ha)</label>
-              <input
-                id="edit-plot-n"
-                type="number"
-                min={0}
-                placeholder="e.g. 120"
-                value={baselineN}
-                onChange={(e) => setBaselineN(e.target.value === '' ? '' : Number(e.target.value))}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="edit-plot-p">Baseline P (kg/ha)</label>
-              <input
-                id="edit-plot-p"
-                type="number"
-                min={0}
-                placeholder="e.g. 60"
-                value={baselineP}
-                onChange={(e) => setBaselineP(e.target.value === '' ? '' : Number(e.target.value))}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="edit-plot-k">Baseline K (kg/ha)</label>
-              <input
-                id="edit-plot-k"
-                type="number"
-                min={0}
-                placeholder="e.g. 40"
-                value={baselineK}
-                onChange={(e) => setBaselineK(e.target.value === '' ? '' : Number(e.target.value))}
-              />
-            </div>
-          </div>
 
           <div className="form-group">
             <label htmlFor="edit-plot-notes">Notes / Irrigation Details</label>

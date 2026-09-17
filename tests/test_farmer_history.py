@@ -58,7 +58,7 @@ class TestFarmerDiagnosisHistory:
         """Guest user can perform diagnosis without token."""
         res = client.post(
             "/api/predict",
-            data={"crop": "potato", "district": "pune", "N": "60", "P": "30", "K": "30"},
+            data={"crop": "potato", "district": "pune"},
             files={"image": ("leaf.jpg", JPEG_BYTES, "image/jpeg")},
         )
         assert res.status_code == 200
@@ -76,9 +76,6 @@ class TestFarmerDiagnosisHistory:
             data={
                 "crop": "orange",
                 "district": "aurangabad",
-                "N": "80",
-                "P": "35",
-                "K": "45",
                 "plot_id": str(plot_id),
             },
             files={"image": ("orange_leaf.jpg", JPEG_BYTES, "image/jpeg")},
@@ -122,7 +119,7 @@ class TestFarmerDiagnosisHistory:
         data = res.json()
         assert data["id"] == record_id
         assert "disease" in data
-        assert "fertilizer" in data
+        assert "fertilizer" not in data
         assert "weather" in data
         assert "chemical_treatment" in data["disease"]
         assert "organic_treatment" in data["disease"]
@@ -145,7 +142,7 @@ class TestFarmerDiagnosisHistory:
         pred = client.post(
             "/api/predict",
             headers=headers,
-            data={"crop": "orange", "district": "aurangabad", "N": "80", "P": "35", "K": "45"},
+            data={"crop": "orange", "district": "aurangabad"},
             files={"image": ("temp.jpg", JPEG_BYTES, "image/jpeg")},
         ).json()
         rec_id = pred["saved_record_id"]
@@ -156,8 +153,8 @@ class TestFarmerDiagnosisHistory:
         get_res = client.get(f"/api/farmer/history/{rec_id}", headers=headers)
         assert get_res.status_code == 404
 
-    def test_authenticated_prediction_persists_without_npk_and_auto_links(self, farmer_session):
-        """Test photo-only workflow (no NPK provided) persists and auto-links to plot."""
+    def test_authenticated_prediction_persists_and_auto_links(self, farmer_session):
+        """Test photo workflow persists and auto-links to plot."""
         headers = farmer_session["headers"]
         res = client.post(
             "/api/predict",
@@ -165,7 +162,6 @@ class TestFarmerDiagnosisHistory:
             data={
                 "crop": "orange",
                 "district": "aurangabad",
-                # Omit N, P, K and omit plot_id
             },
             files={"image": ("orange_photo_only.jpg", JPEG_BYTES, "image/jpeg")},
         )

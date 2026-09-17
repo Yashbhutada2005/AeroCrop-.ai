@@ -44,8 +44,8 @@ export const AboutPage: React.FC = () => {
             <div className="arch-line" />
             <div className="arch-fusion">
               <div className="arch-block tabular">
-                🧪 Soil + Weather MLP<br />
-                <small>6-dim tabular → 64-dim vector</small>
+                ⛅ Weather Telemetry MLP<br />
+                <small>3-dim tabular → 64-dim vector</small>
               </div>
               <div className="arch-concat">
                 ⊕ Concat → 576-dim<br />
@@ -56,11 +56,11 @@ export const AboutPage: React.FC = () => {
             <div className="arch-heads">
               <div className="arch-block head-a">
                 🦠 Disease Head<br />
-                <small>38 classes (CrossEntropy)</small>
+                <small>134 classes (CrossEntropy)</small>
               </div>
               <div className="arch-block head-b">
                 🌾 Yield Head<br />
-                <small>t/ha regression (MSE)</small>
+                <small>Quintal / Acre regression (MSE)</small>
               </div>
             </div>
           </div>
@@ -71,13 +71,13 @@ export const AboutPage: React.FC = () => {
           <h2>{t('dataset_tech_title')}</h2>
           <ul className="about-list">
             <li>
-              <strong>Dataset:</strong> PlantVillage &amp; New Plant Diseases Dataset — 87,900 images across 38 classes (Kaggle).
+              <strong>Dataset:</strong> Multi-Source Agricultural Pathology Consortium — 166,630 images across 134 classes (Mendeley Data, Kaggle, PlantVillage, Zenodo).
             </li>
             <li>
               <strong>Disease Model:</strong> Custom Multi-Modal Dual-Head Deep CNN (ResNet-18 + Tabular MLP Fusion).
             </li>
             <li>
-              <strong>Yield Forecasting:</strong> Microclimate-conditioned regression network trained on soil NPK and meteorological telemetry.
+              <strong>Yield Forecasting:</strong> Microclimate-conditioned regression network trained on meteorological and environmental telemetry.
             </li>
             <li>
               <strong>Live Telemetry:</strong> Open-Meteo REST API (real-time meteorological telemetry for 36 districts).
@@ -115,7 +115,7 @@ export const AboutPage: React.FC = () => {
         <div className="card glass about-card" style={{ gridColumn: '1 / -1' }}>
           <h2>💬 Support &amp; Farmer Assistance</h2>
           <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '14px' }}>
-            Need assistance with leaf disease diagnoses, soil NPK interpretations, PMFBY insurance reports, or technical issues? Our support team is here to help.
+            Need assistance with leaf disease diagnoses, yield forecasts, PMFBY insurance reports, or technical issues? Our support team is here to help.
           </p>
           <div
             style={{

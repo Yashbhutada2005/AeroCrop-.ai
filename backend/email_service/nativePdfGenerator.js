@@ -1,4 +1,4 @@
-﻿const PDFDocument = require('pdfkit');
+const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { getCropNames, getLocalizedPathology } = require('./reportGenerator');
@@ -13,7 +13,6 @@ function generateNativePDF(data) {
                 district = 'Pune',
                 crop = 'Tomato',
                 disease = {},
-                fertilizer = {},
                 yield_t_ha = 28.5,
                 weather = {},
             } = data;
@@ -56,15 +55,6 @@ function generateNativePDF(data) {
             const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
             const refId = 'AC-' + Date.now().toString().slice(-8);
 
-            const ferts = fertilizer?.fertilizers || {};
-            const ureaKg = ferts.Urea || 100;
-            const dapKg = ferts.DAP || 50;
-            const mopKg = ferts.MOP || 40;
-            const ureaBags = Math.ceil(ureaKg / 50);
-            const dapBags = Math.ceil(dapKg / 50);
-            const mopBags = Math.ceil(mopKg / 50);
-            const totalFertCost = (ureaBags * 267) + (dapBags * 1350) + (mopBags * 1700);
-
             const temp = weather?.temperature || 28.0;
             const hum = weather?.humidity || 65.0;
             const rain = weather?.rainfall || 0.0;
@@ -88,7 +78,6 @@ function generateNativePDF(data) {
                     pathogenLabel: 'रोगकारक घटक',
                     chemHead: 'रासायनिक फवारणी शिफारशी (Chemical Treatment)',
                     orgHead: 'सेंद्रिय व जैविक पर्याय (Bio-Organic Remedies)',
-                    fertHead: 'संतुलित खत व्यवस्थापन (ICAR Balanced Fertilizer Dosage)',
                     weatherHead: 'हवामान व फवारणी सल्ला (Spray Window Advisory)',
                     pageFoot: 'पृष्ठ १ / ३ (मराठी अहवाल)',
                     safeSprayText: 'फवारणीसाठी अनुकूल हवामान — सकाळी ७ ते १० किंवा संध्याकाळी ४ नंतर फवारणी करावी.',
@@ -97,7 +86,6 @@ function generateNativePDF(data) {
                     sig2: 'ग्राम कृषी सहाय्यक / तलाठी',
                     sig3: 'कृषी विज्ञान केंद्र (KVK) शास्त्रज्ञ शिक्का',
                     t_data: localized.mr,
-                    fertHeaders: ['खताचा प्रकार', 'डोस (हेक्टरी)', '५० किलो पोती', 'अंदाजित खर्च'],
                 },
                 {
                     lang: 'hi',
@@ -113,7 +101,6 @@ function generateNativePDF(data) {
                     pathogenLabel: 'रोगजनक घटक',
                     chemHead: 'रासायनिक छिड़काव सिफारिशें (Chemical Treatment)',
                     orgHead: 'जैविक एवं प्राकृतिक विकल्प (Bio-Organic Alternatives)',
-                    fertHead: 'संतुलित उर्वरक प्रबंधन (ICAR Balanced Nutrient Dosage)',
                     weatherHead: 'मौसम एवं छिड़काव परामर्श (Weather & Spray Window)',
                     pageFoot: 'पृष्ठ २ / ३ (हिंदी रिपोर्ट)',
                     safeSprayText: 'छिड़काव हेतु अनुकूल मौसम — शांत हवा, सुबह ७ से १० अथवा शाम को छिड़काव करें।',
@@ -122,7 +109,6 @@ function generateNativePDF(data) {
                     sig2: 'ग्राम कृषि अधिकारी / पटवारी',
                     sig3: 'कृषि विज्ञान केंद्र (KVK) विशेषज्ञ मुहर',
                     t_data: localized.hi,
-                    fertHeaders: ['उर्वरक का नाम', 'मात्रा (हेक्टेयर)', '५० कि.ग्रा. बैग', 'अनुमानित लागत'],
                 },
                 {
                     lang: 'en',
@@ -138,7 +124,6 @@ function generateNativePDF(data) {
                     pathogenLabel: 'Causal Organism',
                     chemHead: 'Chemical Formulations & Tank-Mix Protocols',
                     orgHead: 'Bio-Organic & Integrated Pest Management (IPM)',
-                    fertHead: 'Balanced Macronutrient Management (ICAR / MPKV Standards)',
                     weatherHead: 'Micrometeorology & Spray Window Optimization',
                     pageFoot: 'Page 3 / 3 (English Report)',
                     safeSprayText: 'OPTIMAL SPRAY WINDOW — Favorable ambient conditions. Recommend early morning (7–10 AM) foliar spray.',
@@ -147,7 +132,6 @@ function generateNativePDF(data) {
                     sig2: 'Village Agriculture Officer / Talathi',
                     sig3: 'KVK Agronomist / PMFBY Surveyor Seal',
                     t_data: localized.en,
-                    fertHeaders: ['Fertilizer Type', 'Dosage (kg/ha)', '50kg Bags', 'Estimated Cost'],
                 }
             ];
 
@@ -237,37 +221,7 @@ function generateNativePDF(data) {
 
                 y += 102;
 
-                // ── Section 3: ICAR Fertilizer Dosage Table ────────────────────
-                setHeading(10);
-                doc.fillColor('#15803d').text(cfg.fertHead, 32, y);
-                y += 16;
-
-                doc.rect(32, y, cw, 50).fillAndStroke('#f8fafc', '#cbd5e1');
-                doc.fillColor('#0f172a');
-                setHeading(8.5);
-                const h = cfg.fertHeaders;
-                doc.text(h[0], 42, y + 6);
-                doc.text(h[1], 175, y + 6);
-                doc.text(h[2], 295, y + 6);
-                doc.text(h[3], 420, y + 6);
-
-                doc.moveTo(32, y + 18).lineTo(pw - 32, y + 18).stroke('#e2e8f0');
-
-                setBody(8);
-                doc.fillColor('#334155');
-                doc.text('Urea (युरिया / यूरिया 46% N)', 42, y + 22);
-                doc.text(`${ureaKg} kg/ha`, 175, y + 22);
-                doc.text(`${ureaBags} bags`, 295, y + 22);
-                doc.text(`Rs. ${ureaBags * 267}`, 420, y + 22);
-
-                doc.text('DAP (डीएपी 18:46:0)', 42, y + 34);
-                doc.text(`${dapKg} kg/ha`, 175, y + 34);
-                doc.text(`${dapBags} bags`, 295, y + 34);
-                doc.text(`Rs. ${dapBags * 1350}`, 420, y + 34);
-
-                y += 58;
-
-                // ── Section 4: Weather & Spray Advisory ────────────────────────
+                // ── Section 3: Weather & Spray Advisory ────────────────────────
                 setHeading(10);
                 doc.fillColor('#15803d').text(cfg.weatherHead, 32, y);
                 y += 16;

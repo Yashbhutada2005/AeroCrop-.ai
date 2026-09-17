@@ -6,11 +6,11 @@
 
 ## Project Overview
 
-**AeroCrop.ai** is a Multi-Modal Multi-Task Deep Learning & Precision Agriculture Platform designed for commercial and smallholder farmers in Maharashtra, India. From a single leaf photograph, soil nutrient metrics, and microclimatic telemetry, it delivers six unified operational outputs:
+**AeroCrop.ai** is a Multi-Modal Multi-Task Deep Learning & Precision Agriculture Platform designed for commercial and smallholder farmers in Maharashtra, India. From a single leaf photograph, crop type, and microclimatic telemetry, it delivers six unified operational outputs:
 
-1. **Pathology Diagnosis** — 38-class classification with probability distribution and confidence score
+1. **Pathology Diagnosis** — 134-class multi-crop classification with probability distribution and confidence score
 2. **Vernacular Prescription (Audio & Visual)** — Chemical + organic remedies with native Web Speech text-to-speech (`mr-IN`, `hi-IN`, `en-IN`)
-3. **Commercial 50kg Bags & Subsidized Cost** — Deficit stoichiometry translated to 50kg Urea, DAP, MOP bags with Acre/Guntha scaling and GoI NBS pricing
+3. **Agronomic Treatments & Disease Management** — Validated chemical treatments and eco-friendly organic remedies tailored to the diagnosed disease
 4. **Yield Forecasting** — Multi-modal regression predicting harvest in tons/hectare ($t/\text{ha}$) and quintals/acre
 5. **Smart Foliar Spray Window** — Real-time hazard assessment preventing chemical wash-off ($>1\text{ mm}$ rain) and drift ($>15\text{ km/h}$ wind)
 6. **APMC Mandi Intelligence & Revenue** — Live Maharashtra APMC modal prices, MSP benchmarks, and projected harvest cash revenue (₹)
@@ -25,11 +25,11 @@
 Layer           | Directory          | Technology & Responsibility
 ─────────────── | ────────────────── | ─────────────────────────────────────────────────────────────
 Model           | model/             | PyTorch MultiModalAeroCropNet (ResNet-18 + MLP) + InferenceService
-Database        | database/          | Async SQLAlchemy + SQLite (`users`, `farmer_plots`, `diagnoses`)
-Service         | services/          | Core agronomics (Disease, Fertilizer, Weather, Mandi, Storage)
+Database        | database/          | Async Motor + MongoDB (`users`, `farm_plots`, `analyses`)
+Service         | services/          | Core agronomics (Disease, Weather, Mandi, Storage)
 Controller      | controllers/       | FastAPI routers (`auth`, `plots`, `history`, `predict`, `mandi`, `weather`)
 Frontend (Vite) | frontend/          | React 18 + Vite + TypeScript (Dashboard, Diagnose, Plots, Auth)
-Frontend (HTML) | views/             | Vanilla HTML5/CSS3/JS SPA with Chart.js fallback
+Frontend (HTML) | views/             | Vanilla HTML5/CSS3/JS SPA fallback
 ```
 
 ### Neural Network: `MultiModalAeroCropNet`
@@ -38,14 +38,14 @@ Frontend (HTML) | views/             | Vanilla HTML5/CSS3/JS SPA with Chart.js f
 Input 1: RGB Leaf Image (3 × 224 × 224)
   └─► ResNet-18 Visual Encoder ──────────────────► 512-dim visual vector
 
-Input 2: Tabular Vector [N, P, K, temp, humidity, rainfall] (6-dim)
+Input 2: Tabular Vector [temp, humidity, rainfall] (3-dim)
   └─► 3-Layer MLP Tabular Encoder ───────────────► 64-dim tabular vector
 
                             Concatenation → 576-dim
                             Linear(576, 128) → BatchNorm → ReLU
                             ── 128-dim Shared Embedding ──
 
-  ├─► Task Head A: Linear(128, 38) → Softmax     → Disease Class + Confidence
+  ├─► Task Head A: Linear(128, 134) → Softmax    → Disease Class + Confidence
   └─► Task Head B: Linear(128, 32) → ReLU → Linear(32, 1) → Yield (t/ha)
 ```
 
@@ -56,68 +56,33 @@ Input 2: Tabular Vector [N, P, K, temp, humidity, rainfall] (6-dim)
 
 ---
 
-## Fertilizer Dosage Math
+## Agronomic Treatment & Disease Management
 
-Based on ICAR (Indian Council of Agricultural Research) recommendations.
-
-### Crop NPK Targets (kg/ha)
-
-| Crop | N Target | P Target | K Target |
-|------|----------|----------|----------|
-| Cotton | 120 | 60 | 60 |
-| Wheat | 120 | 60 | 40 |
-| Maize | 120 | 60 | 40 |
-| Rice | 100 | 50 | 50 |
-| Potato | 120 | 80 | 120 |
-
-### Calculation Formulae
-
-**Step 1 — Compute Deficits:**
-```
-D_N = max(0, Target_N - Soil_N)
-D_P = max(0, Target_P - Soil_P)
-D_K = max(0, Target_K - Soil_K)
-```
-
-**Step 2 — DAP (18% N, 46% P₂O₅) to satisfy Phosphorus:**
-```
-DAP_qty = D_P / 0.46
-```
-
-**Step 3 — Urea (46% N) for remaining Nitrogen after DAP contribution:**
-```
-N_from_DAP   = DAP_qty × 0.18
-N_remaining  = max(0, D_N - N_from_DAP)
-Urea_qty     = N_remaining / 0.46
-```
-
-**Step 4 — MOP (60% K₂O) to satisfy Potassium:**
-```
-MOP_qty = D_K / 0.60
-```
+Every detected disease is matched against an extensive agricultural pathology catalog providing:
+- **Chemical Treatments**: Specific registered fungicides/bactericides/insecticides, exact dilution ratios (e.g. g/L or mL/L water), and recommended spray timings.
+- **Organic & Biological Remedies**: Neem-based formulations, *Trichoderma*, bio-fungicides, cultural field sanitization practices, and crop rotation guidelines.
+- **Severity Scoring**: Dynamic triage (`None`, `Low`, `Moderate`, `High`, `Critical`) informing urgency of intervention.
 
 ---
 
 ## Disease Knowledge Base
 
-38 classes aligned with the PlantVillage dataset:
+Unified 134-class agricultural pathology dataset across 11 field crops (all achieving ≥10 classes each). Complete specifications and class-level train/valid counts are documented in [dataset_specifications.md](file:///d:/Codes/final_year_project/docs/dataset_specifications.md).
 
-| Class | Disease | Crop | Severity |
-|-------|---------|------|----------|
-| 0 | Apple Scab | Apple | High |
-| 1 | Apple Black Rot | Apple | High |
-| 2 | Cedar Apple Rust | Apple | Moderate |
-| 3 | Apple Healthy | Apple | None |
-| 7 | Cercospora / Gray Leaf Spot | Maize | High |
-| 8 | Common Rust | Maize | Moderate |
-| 9 | Northern Leaf Blight | Maize | High |
-| 20 | Early Blight | Potato | Moderate |
-| 21 | Late Blight | Potato | Critical |
-| 28 | Bacterial Spot | Tomato | High |
-| 29 | Early Blight | Tomato | Moderate |
-| 30 | Late Blight | Tomato | Critical |
-| 35 | Yellow Leaf Curl Virus | Tomato | Critical |
-| … | *(38 total)* | | |
+| Crop | Classes | Train (80%) | Valid (20%) | Total Images | Status (≥10 Goal) |
+|:-----|:-------:|:-----------:|:-----------:|:------------:|:-----------------:|
+| **Potato** | **18** | 12,838 | 3,201 | 16,039 | ✅ Complete |
+| **Cotton** | **15** | 7,836 | 1,942 | 9,778 | ✅ Complete |
+| **Orange** | **13** | 7,167 | 1,780 | 8,947 | ✅ Complete |
+| **Banana** | **12** | 15,667 | 3,898 | 19,565 | ✅ Complete |
+| **Sugarcane** | **12** | 9,662 | 2,389 | 12,051 | ✅ Complete |
+| **Corn (maize)** | **11** | 35,718 | 8,922 | 44,640 | ✅ Complete |
+| **Rice** | **11** | 12,271 | 3,065 | 15,336 | ✅ Complete |
+| **Soybean** | **11** | 5,474 | 1,358 | 6,832 | ✅ Complete |
+| **Wheat** | **11** | 1,461 | 371 | 1,832 | ✅ Complete |
+| **Tomato** | **10** | 18,335 | 4,579 | 22,914 | ✅ Complete |
+| **Turmeric** | **10** | 6,959 | 1,737 | 8,696 | ✅ Complete |
+| **TOTAL** | **134** | **133,388** | **33,242** | **166,630** | **11 / 11 Crops (100%)** |
 
 ---
 
@@ -143,7 +108,7 @@ MOP_qty = D_K / 0.60
 **Files created:**
 - `config.py`, `requirements.txt`, `main.py`, `.gitignore`
 - `model/__init__.py`, `model/architecture.py`, `model/inference.py`
-- `services/__init__.py`, `services/disease_service.py`, `services/fertilizer_service.py`, `services/weather_service.py`
+- `services/__init__.py`, `services/disease_service.py`, `services/weather_service.py`
 - `controllers/__init__.py`, `controllers/predict_controller.py`, `controllers/weather_controller.py`
 - `views/index.html`, `views/static/css/style.css`, `views/static/js/app.js`
 - `README.md`, `documentation.md`
@@ -151,7 +116,7 @@ MOP_qty = D_K / 0.60
 **Architecture decisions:**
 - MVC pattern adopted for separation of concerns
 - InferenceService implemented as a Singleton with graceful mock fallback
-- All 38 PlantVillage disease classes catalogued with full treatment prescriptions
+- Agricultural disease classes catalogued with full treatment prescriptions
 - Open-Meteo API selected for weather (free tier, no key required)
 
 ---
@@ -164,7 +129,7 @@ MOP_qty = D_K / 0.60
 
 | Dataset | File | Size | Records |
 |---------|------|------|--------|
-| Disease images | `archive.zip` | 2.89 GB | 87,900 images, 38 classes |
+| Disease images (Initial) | `archive.zip` | 2.89 GB | 87,900 images (expanded to 166,630 images, 134 classes in Milestone 7) |
 | Yield tabular | `archive (1).zip` | ~1 MB | `yield_df.csv` |
 
 **Files created:**
@@ -196,34 +161,22 @@ Transitioning AeroCrop.ai from a laboratory diagnostic research model into an al
      - 🟡 **Warning (Heat Scorch Risk)**: Temperature $> 36^\circ\text{C}$
      - 🟢 **Optimal / Safe**: Clear skies, low wind ($< 15\text{ km/h}$), moderate humidity.
 
-3. **Commercial 50kg Bag Stoichiometry & Cost Projection**
-   - Direct translation of elemental deficits into integer commercial 50kg fertilizer bags:
-     $$\text{Bags}_{\text{50kg}} = \left\lceil \frac{\text{Deficit (kg)}}{50} \right\rceil$$
-   - Goverment of India NBS subsidized retail pricing benchmarks:
-     - **Urea (46% N)**: ₹267 / 50kg bag
-     - **DAP (18% N, 46% P)**: ₹1,350 / 50kg bag
-     - **MOP (60% K)**: ₹1,700 / 50kg bag
-   - Area multiplier supporting Acres ($\times 0.4047$), Gunthas ($\times 0.01$), and Hectares ($\times 1.0$).
-
-4. **APMC Mandi Price Intelligence & Gross Revenue Forecasting**
+3. **APMC Mandi Price Intelligence & Gross Revenue Forecasting**
    - New `services/mandi_service.py` and `controllers/mandi_controller.py` with REST endpoints (`/api/mandi/{district}/{crop}`, `/api/mandi/overview/{district}`).
    - Covers key Maharashtra commodities (Cotton, Soybean, Wheat, Maize, Potato, Tomato, Onion, Grape, Rice) across major APMC hubs (Lasalgaon, Jalgaon, Pune, Nagpur, Latur, Kolhapur).
    - Computes expected harvest gross revenue from predicted yield:
      $$\text{Gross Revenue (₹)} = (\text{Yield}_{\text{t/ha}} \times 10) \times \text{APMC Modal Price (₹/q)}$$
 
-5. **PMFBY Insurance Loss Proof & WhatsApp Export**
+4. **PMFBY Insurance Loss Proof & WhatsApp Export**
    - Automated generation of formal crop loss assessment documents compliant with Pradhan Mantri Fasal Bima Yojana (PMFBY) surveyor guidelines.
    - 1-click WhatsApp advisory payload formatting for immediate peer sharing.
 
-6. **ICAR Krishi Vigyan Kendra (KVK) Escalation Directory**
+5. **ICAR Krishi Vigyan Kendra (KVK) Escalation Directory**
    - District-wise extension registry for expert human agronomist verification when AI confidence is low.
 
-7. **Frictionless Photo-First Diagnostics & Growth-Stage Fertilizer Schedule**
-   - Removed mandatory soil NPK entry to eliminate the primary friction point for rural farmers without soil health cards.
-   - Replaced soil deficit bar chart with an actionable **ICAR Stage-Wise Nutrient Schedule (खत व्यवस्थापन वेळापत्रक)**:
-     - **Stage 1 (Basal at sowing)**: 100% DAP/SSP, 100% MOP, and 1/3rd Urea applied to root furrows.
-     - **Stage 2 (Vegetative at 30–35 DAS)**: 1/3rd Urea top-dressed along crop rows with light irrigation.
-    - The multi-modal neural network architecture maintains 100% backward compatibility: the inference service automatically applies regional ICAR soil baselines under the hood, preserving full 90.82% validation accuracy without weights mismatch.
+6. **Photo-First Diagnostics & Weather-Driven Yield Forecasting**
+   - Direct leaf photo submission with real-time local weather telemetry (temperature, humidity, rainfall).
+   - Multi-modal neural network fuses visual features with 3-dimensional weather vector for simultaneous pathology identification and harvest yield prediction.
 
 ---
 
@@ -282,32 +235,53 @@ Consolidation and deduplication of the complete training dataset, freezing the c
   3. 🌱 **Cotton (कापूस / कपास)** — 2 classes (Bacterial blight & healthy)
   4. 🎋 **Sugarcane (ऊस / गन्ना)** — 5 classes (Red rot, Rust, Mosaic, Yellow leaf, healthy)
   5. 🫘 **Soybean (सोयाबीन)** — 1 class (healthy)
-  6. 🌽 **Maize / Corn (मका / मक्का)** — 4 classes (Cercospora, Rust, Blight, healthy)
-  7. 🥔 **Potato (बटाटा / आलू)** — 3 classes (Early blight, Late blight, healthy)
-  8. 🍅 **Tomato (टोमॅटो / टमाटर)** — 10 classes (Blight, mold, viruses, bacterial spot, healthy)
-  9. 🍌 **Banana (केळी / केला)** — 4 classes (Panama disease, Sigatoka, Cordana, healthy)
-  10. 🌿 **Turmeric / Haldi (हळद / हल्दी)** — 4 classes (Leaf blotch, dry leaf, rhizome rot, healthy)
-  11. 🍊 **Orange / Citrus (संत्रे / संतरा)** — 1 class (Citrus greening / Huanglongbing)
+  6. 🌽 **Maize / Corn (मका / मक्का)** — 11 classes (Lethal necrosis, streak virus, leaf streak, chlorotic mottle, fall armyworm, grasshopper, leaf beetle, rust, blight, gray leaf spot, healthy)
+  7. 🥔 **Potato (बटाटा / आलू)** — 18 classes (Early/late blight, soft rot, bacterial wilt, dry/pink rot, black scurf, blackleg, common scab, PLRV, PVX, PVY, mosaic virus, nematode, pest damage, bruising, healthy)
+  8. 🍅 **Tomato (टोमॅटो / टमाटर)** — 10 classes (Blight, mold, viruses, bacterial spot, spider mites, target spot, healthy)
+  9. 🍌 **Banana (केळी / केला)** — 12 classes (Panama disease, Sigatoka, Black Sigatoka, Cordana, anthracnose, fruit-scarring beetle, skipper, split peel, chewing insect, bract mosaic, moko, healthy)
+  10. 🌿 **Turmeric / Haldi (हळद / हल्दी)** — 10 classes (Leaf blotch mild/severe, dry leaf mild/severe, rhizome rot early/advanced, leaf spot, septoria, nutrient deficiency, healthy)
+  11. 🍊 **Orange / Citrus (संत्रे / संतरा)** — 13 classes (Greening/HLB, canker, black spot, mealybugs, die back, spiny whitefly, powdery mildew, shot hole, foliage damage, yellow leaves, scab, melanose, healthy)
 
-**Dataset Volume Metrics**:
-- **Total Unique Images**: **62,836 images** (100% unique MD5 hashes)
-- **Training Set (80%)**: **50,294 images**
-- **Validation Set (20%)**: **12,542 images**
-- **Train/Valid Data Leakage**: **0** (Zero hash overlap)
-- **Duplicates Eliminated**: **14,470+** redundant files pruned (~1.5 GB storage reclaimed)
-- **Total Canonical Classes**: **50 classes**
-- **Tabular Yield Dataset**: **36,439 records** (`yield_df.csv` covering FAO + microclimate telemetry)
+---
 
-**Official Reference Dataset Links**:
-1. [20k Multi-Class Crop Disease Images (Jawad Ali)](https://www.kaggle.com/datasets/jawadali1045/20k-multi-class-crop-disease-images) — Wheat & Upgraded Rice
-2. [New Plant Diseases Dataset (Augmented)](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset) — Tomato, Potato, Corn, Orange, Soybean
-3. [Banana Leaf Disease Dataset v4 (Rayhan Arlistya)](https://www.kaggle.com/datasets/rayhanarlistya/banana-leaf-disease-dataset-v4) — Banana pathology
-4. [Turmeric Datasets for CNN (Hitesh Patil)](https://www.kaggle.com/datasets/hiteshpatil95/turmeric-datasets-for-cnn-model-training-and-test) — Turmeric pathology
-5. [Cotton Leaf Diseases Dataset (Janmejay Bhoi)](https://www.kaggle.com/datasets/janmejaybhoi/cotton-disease-dataset) — Cotton pathology
-6. [Sugarcane Leaf Disease Dataset (Nirmal Sankalana)](https://www.kaggle.com/datasets/nirmalsankalana/sugarcane-leaf-disease-dataset) — Sugarcane pathology
-7. [Rice Leaf Diseases Dataset (Vbookshelf)](https://www.kaggle.com/datasets/vbookshelf/rice-leaf-diseases) — Baseline rice pathology
-8. [Crop Yield Prediction Dataset (FAO / Rikin Patel)](https://www.kaggle.com/datasets/patelris/crop-yield-prediction-dataset) — Yield regression telemetry
-9. [Crop Production in India (Abhinand)](https://www.kaggle.com/datasets/abhinand05/crop-production-in-india) — District-level Indian crop production
+### Milestone 7 — Universal 10+ Multi-Class Pathology Expansion Across All Crops (2026-09-16)
+
+**Status**: ✅ 11 of 11 Crops Completed (100% Achieved, 134 classes)
+
+**Summary**:
+Systematically expanded every target crop to achieve $\ge 10$ distinct disease/condition classes using verified, live public datasets from Mendeley Data, Zenodo, and Kaggle.
+
+**Current Dataset Metrics**:
+- **Total Diagnostic Classes**: **134 classes** (All 11 crops $\ge 10$ classes, 100% complete)
+- **Total Images**: **166,630 images**
+- **Training Set (80%)**: **133,388 images**
+- **Validation Set (20%)**: **33,242 images**
+- **Target Field Crops**: **11 crops** (Banana, Corn, Cotton, Orange, Potato, Rice, Soybean, Sugarcane, Tomato, Turmeric, Wheat)
+- **Class Partitioning**: Deterministic 80/20 train/valid split with random seed 42 and unique dataset prefixes (`clid_`, `sarcld_`, `or_`, `sb2_`, `mhsoya_`, etc.) to prevent file collisions and data leakage.
+
+**Per-Crop Class & Image Counts**:
+1. **Potato**: **18 classes** (12,838 train | 3,201 valid | total 16,039)
+2. **Cotton**: **15 classes** (7,836 train | 1,942 valid | total 9,778)
+3. **Orange**: **13 classes** (7,167 train | 1,780 valid | total 8,947)
+4. **Banana**: **12 classes** (15,667 train | 3,898 valid | total 19,565)
+5. **Sugarcane**: **12 classes** (9,662 train | 2,389 valid | total 12,051)
+6. **Corn (maize)**: **11 classes** (35,718 train | 8,922 valid | total 44,640)
+7. **Rice**: **11 classes** (12,271 train | 3,065 valid | total 15,336)
+8. **Soybean**: **11 classes** (5,474 train | 1,358 valid | total 6,832)
+9. **Wheat**: **11 classes** (1,461 train | 371 valid | total 1,832)
+10. **Tomato**: **10 classes** (18,335 train | 4,579 valid | total 22,914)
+11. **Turmeric**: **10 classes** (6,959 train | 1,737 valid | total 8,696)
+
+**Verified Dataset Sources Integrated**:
+1. **Sweet Orange Leaf Dataset**: Mendeley Data `10.17632/f7cr74mwpj.1` (5,813 images, 7 new classes)
+2. **Multi-Class Soybean Leaf Disease Dataset**: Mendeley Data `10.17632/6fhphxg297.2` (Bacterial Blight, Cercospora, Rust, SDS)
+3. **MH-SoyaHealthVision Dataset**: Mendeley Data `10.17632/hkbgh5s3b7.1` (Frog Leaf Eye, Mosaic Virus, Caterpillar & Semilooper)
+4. **Cotton Leaf Image Dataset for Disease Classification**: Mendeley / Kaggle (Alternaria, Verticillium, Fusarium)
+5. **SAR-CLD-2024 Comprehensive Cotton Dataset**: Mendeley Data (Jassids, Leaf Reddening, Herbicide Damage, Leaf Variegation)
+6. **Potato Leaf Disease Dataset & PotatoCare**: Mendeley Data (Soft Rot, PLRV, PVX, PVY, Black Scurf, Blackleg, Scab, Dry Rot, Pink Rot)
+7. **Paddy Doctor Dataset**: Kaggle (10,407 paddy field images)
+8. **Maize African & Seasonal Corn Datasets**: Mendeley Data (Lethal Necrosis, Streak Virus, Bacterial Leaf Streak, Chlorotic Mottle, Pests)
+9. **Turmeric Necrotic Lesion Severity Partitioning**: Algorithmic separation into mild/severe stages based on lesion quantification.
 
 ---
 
@@ -316,7 +290,7 @@ Consolidation and deduplication of the complete training dataset, freezing the c
 | Parameter | AeroCrop.ai Core v2.0 | Farmer-Centric Extensions |
 |---|---|---|
 | **AI Backbone** | ResNet-18 + 3-Layer Tabular MLP | Vernacular Voice Synthesizer (`mr-IN`, `hi-IN`) |
-| **Output Metrics** | Disease Class, % Confidence, t/ha Yield | 50kg Commercial Bags, ₹ Total Input Cost |
+| **Output Metrics** | Disease Class, % Confidence, t/ha Yield | Chemical & Organic Remedies, Spray Window |
 | **Microclimate** | Temp, Humidity, Rain Display | **Smart Spraying Window Indicator** (Drift & Wash-off) |
 | **Economics** | Yield regression only | **APMC Mandi Rates, MSP Benchmarks, Gross Revenue** |
 | **Reporting** | Generic HTML print | **PMFBY Insurance Claim Document & WhatsApp Share** |

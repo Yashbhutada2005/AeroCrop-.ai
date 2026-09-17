@@ -2,16 +2,14 @@
 AeroCrop.ai — Automated Tests for Farmer-Centric Features
 Tests:
   1. Weather Spray Safety Decision Logic
-  2. Commercial 50kg Fertilizer Bags & Cost Math
-  3. APMC Mandi Intelligence & Revenue Forecasting
-  4. Mandi and Weather API Endpoints
+  2. APMC Mandi Intelligence & Revenue Forecasting
+  3. Mandi and Weather API Endpoints
 """
 
 import pytest
 from fastapi.testclient import TestClient
 from main import app
 from services.weather_service import WeatherService
-from services.fertilizer_service import FertilizerService
 from services.mandi_service import MandiService
 
 client = TestClient(app)
@@ -52,33 +50,7 @@ def test_spray_window_optimal():
     assert "अनुकूल" in res["reason_mr"]
 
 
-# ── 2. Commercial 50kg Fertilizer Bags & Cost Tests ──────────────────────────
-
-def test_fertilizer_commercial_bags_calculation():
-    """Verify deficit is converted into 50kg bags and INR costs."""
-    result = FertilizerService.calculate(crop="wheat", soil_N=40.0, soil_P=20.0, soil_K=20.0)
-    
-    assert "commercial_bags" in result
-    assert "total_cost_inr_ha" in result
-    
-    bags = result["commercial_bags"]
-    assert "Urea" in bags
-    assert "DAP" in bags
-    assert "MOP" in bags
-    
-    # Check that bags are positive
-    assert bags["Urea"]["bags_50kg"] > 0
-    assert bags["DAP"]["bags_50kg"] > 0
-    assert bags["MOP"]["bags_50kg"] > 0
-    
-    # Check cost computation
-    assert bags["Urea"]["cost_inr"] == round((bags["Urea"]["kg"] / 50.0) * 267.0, 0)
-    assert bags["DAP"]["cost_inr"] == round((bags["DAP"]["kg"] / 50.0) * 1350.0, 0)
-    assert bags["MOP"]["cost_inr"] == round((bags["MOP"]["kg"] / 50.0) * 1700.0, 0)
-    assert result["total_cost_inr_ha"] > 0
-
-
-# ── 3. Mandi Intelligence & Revenue Forecast Tests ───────────────────────────
+# ── 2. Mandi Intelligence & Revenue Forecast Tests ───────────────────────────
 
 def test_mandi_service_rates_and_revenue():
     """Verify APMC price lookup and yield-to-revenue math."""
@@ -110,7 +82,7 @@ def test_mandi_district_overview():
     assert "potato" in crops
 
 
-# ── 4. REST API Endpoint Tests ───────────────────────────────────────────────
+# ── 3. REST API Endpoint Tests ───────────────────────────────────────────────
 
 def test_api_mandi_endpoint():
     resp = client.get("/api/mandi/pune/wheat?yield_t_ha=3.0")
@@ -140,7 +112,7 @@ def test_api_weather_spray_window():
 
 
 def test_farmer_predict_journey_with_weather_and_mandi():
-    """Simulate a complete farmer submission: leaf photo + soil + district."""
+    """Simulate a complete farmer submission: leaf photo + crop + district."""
     import io
     from PIL import Image
 
@@ -154,9 +126,6 @@ def test_farmer_predict_journey_with_weather_and_mandi():
         data={
             "crop": "cotton",
             "district": "jalgaon",
-            "N": 50.0,
-            "P": 25.0,
-            "K": 25.0,
         },
         files={"image": ("leaf.jpg", buf, "image/jpeg")},
     )
@@ -177,15 +146,10 @@ def test_farmer_predict_journey_with_weather_and_mandi():
     assert "safe" in weather["spray_window"]
     assert "status" in weather["spray_window"]
 
-    # 2. Commercial Bags & Fertilizer Verification
-    fert = res["fertilizer"]
-    assert "commercial_bags" in fert
-    assert "Urea" in fert["commercial_bags"]
-    assert "DAP" in fert["commercial_bags"]
-    assert "MOP" in fert["commercial_bags"]
-    assert fert["total_cost_inr_ha"] > 0
+    # 2. Fertilizer removal check
+    assert "fertilizer" not in res
 
-    # 3. Mandi Intelligence & Revenue Verification (in the context of the auto-detected crop!)
+    # 3. Mandi Intelligence & Revenue Verification
     mandi = res["mandi"]
     assert mandi is not None
     assert mandi["crop"] == res["crop_key"]
@@ -196,8 +160,8 @@ def test_farmer_predict_journey_with_weather_and_mandi():
     assert mandi["revenue_projection"]["gross_revenue_acre_inr"] > 0
 
 
-def test_frictionless_predict_without_npk():
-    """Verify that a farmer can diagnose with only a photo, crop, and district without entering NPK."""
+def test_frictionless_predict_photo_only():
+    """Verify that a farmer can diagnose with photo, crop, and district."""
     import io
     from PIL import Image
 
@@ -218,11 +182,7 @@ def test_frictionless_predict_without_npk():
     res = response.json()
     assert res["status"] == "success"
     assert "disease" in res
-    assert "fertilizer" in res
-    assert res["fertilizer"]["mode"] == "standard_pop"
-    assert "commercial_bags" in res["fertilizer"]
-    assert "Urea" in res["fertilizer"]["commercial_bags"]
-    assert res["fertilizer"]["total_cost_inr_ha"] > 0
+    assert "fertilizer" not in res
     assert "mandi" in res
     assert res["mandi"]["district"] == "Nagpur"
 

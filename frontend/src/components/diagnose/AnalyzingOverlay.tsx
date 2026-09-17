@@ -88,21 +88,21 @@ export const AnalyzingOverlay: React.FC<AnalyzingOverlayProps> = ({
         agency: 'AEROCROP',
         icon: '🧬',
         title: `Pathogen Genome Biomarker Matching`,
-        detail: `Cross-referencing 38 phytopathological classes across fungal, bacterial, and viral taxonomy databases...`,
+        detail: `Cross-referencing 134 phytopathological classes across fungal, bacterial, and viral taxonomy databases...`,
         color: '#f472b6',
       },
       {
         agency: 'AEROCROP',
         icon: '🌾',
         title: `Multi-Modal Tensor Fusion & Yield Trajectory`,
-        detail: `Fusing 576-dim visual-tabular latent vector through dense neural layers for yield forecasting (t/ha)...`,
+        detail: `Fusing 576-dim visual-tabular latent vector through dense neural layers for yield forecasting (Quintal / Acre)...`,
         color: '#a78bfa',
       },
       {
         agency: 'ICAR',
         icon: '⚡',
         title: `Precision Agronomic Prescription Synthesis`,
-        detail: `Computing Urea, DAP, and MOP deficit dosages and generating PMFBY insurance crop advisory...`,
+        detail: `Synthesizing chemical treatments, organic remedies, and PMFBY insurance crop advisory...`,
         color: '#10b981',
       },
     ];
@@ -190,14 +190,14 @@ export const AnalyzingOverlay: React.FC<AnalyzingOverlayProps> = ({
       }}
     >
       <div
-        className="glass"
+        className="glass scanner-modal-card"
         style={{
           maxWidth: '680px',
           width: '100%',
           maxHeight: '92vh',
           overflowY: 'auto',
           borderRadius: '24px',
-          padding: '28px 24px',
+          padding: 'clamp(16px, 4vw, 28px)',
           background: 'rgba(255, 255, 255, 0.96)',
           border: '1px solid rgba(16, 185, 129, 0.45)',
           boxShadow: '0 25px 50px -12px rgba(16, 185, 129, 0.25), 0 0 40px rgba(16, 185, 129, 0.15)',
@@ -206,6 +206,7 @@ export const AnalyzingOverlay: React.FC<AnalyzingOverlayProps> = ({
       >
         {/* Top High-Tech Satellite Badges */}
         <div
+          className="scanner-top-badges"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -217,7 +218,7 @@ export const AnalyzingOverlay: React.FC<AnalyzingOverlayProps> = ({
             paddingBottom: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span
               style={{
                 display: 'inline-flex',
@@ -277,7 +278,7 @@ export const AnalyzingOverlay: React.FC<AnalyzingOverlayProps> = ({
         </div>
 
         {/* Center Scanner Viewport: Holographic Scan of Leaf Photo */}
-        <div style={{ display: 'grid', gridTemplateColumns: imagePreview ? '190px 1fr' : '1fr', gap: '20px', alignItems: 'center', marginBottom: '20px' }}>
+        <div className="scanner-body-grid" style={{ display: 'grid', gridTemplateColumns: imagePreview ? '190px 1fr' : '1fr', gap: '20px', alignItems: 'center', marginBottom: '20px' }}>
           {imagePreview ? (
             <div
               style={{
@@ -493,6 +494,16 @@ export const AnalyzingOverlay: React.FC<AnalyzingOverlayProps> = ({
           0% { transform: scale(0.9); opacity: 0.7; }
           50% { transform: scale(1.4); opacity: 1; }
           100% { transform: scale(0.9); opacity: 0.7; }
+        }
+        @media (max-width: 560px) {
+          .scanner-body-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+          .scanner-top-badges {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
         }
       `}</style>
     </div>

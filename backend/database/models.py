@@ -3,10 +3,9 @@ AeroCrop.ai — MongoDB Document Models (Pydantic V2)
 
 Models:
   - User: Farmer identity, credentials, default district, preferred language
-  - FarmPlot: Farmer's multiple crop plots and acreage with soil baseline
+  - FarmPlot: Farmer's multiple crop plots and acreage
   - DiagnosisRecord / AnalysisRecord: Full-fidelity multi-modal analysis document
     storing disease taxonomy, complete organic & chemical treatments,
-    soil NPK inputs & target deficits, fertilizer commercial bag prescriptions & costs,
     weather telemetry & spray window advisories, mandi market rates & revenue projections,
     and ensemble telemetry.
 """
@@ -45,9 +44,6 @@ class FarmPlot(BaseModel):
     area_acres: float = 1.0
     sowing_date: Optional[str] = None
     soil_type: str = "Medium Black"
-    baseline_N: float = 60.0
-    baseline_P: float = 30.0
-    baseline_K: float = 30.0
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=_utcnow)
 
@@ -64,6 +60,8 @@ class DiseasePayload(BaseModel):
     description: str = ""
     chemical_treatment: List[str] = Field(default_factory=list)
     organic_treatment: List[str] = Field(default_factory=list)
+    chemical_cost: Optional[str] = None
+    organic_cost: Optional[str] = None
     probabilities: Optional[List[float]] = None
 
 
@@ -71,24 +69,6 @@ class YieldPayload(BaseModel):
     predicted_yield_t_ha: float = 0.0
     quintals_per_ha: float = 0.0
     quintals_per_acre: float = 0.0
-
-
-class SoilPayload(BaseModel):
-    N: Optional[float] = None
-    P: Optional[float] = None
-    K: Optional[float] = None
-    tested: bool = False
-
-
-class FertilizerPayload(BaseModel):
-    mode: str = "soil_test"
-    target: Dict[str, float] = Field(default_factory=dict)
-    deficit: Dict[str, float] = Field(default_factory=dict)
-    fertilizers: Dict[str, float] = Field(default_factory=dict)
-    interpretation: str = ""
-    surplus_n_warning: Optional[str] = None
-    commercial_bags: Optional[Dict[str, Any]] = None
-    total_cost_inr_ha: Optional[float] = None
 
 
 class WeatherPayload(BaseModel):
@@ -139,8 +119,6 @@ class DiagnosisRecord(BaseModel):
     # Full Rich Analysis Payloads
     disease: DiseasePayload
     yield_data: YieldPayload = Field(default_factory=YieldPayload)
-    soil: SoilPayload = Field(default_factory=SoilPayload)
-    fertilizer: FertilizerPayload = Field(default_factory=FertilizerPayload)
     weather: WeatherPayload = Field(default_factory=WeatherPayload)
     mandi: Optional[MandiPayload] = None
     system_telemetry: SystemTelemetryPayload = Field(default_factory=SystemTelemetryPayload)
@@ -172,30 +150,6 @@ class DiagnosisRecord(BaseModel):
     @property
     def predicted_yield_t_ha(self) -> float:
         return self.yield_data.predicted_yield_t_ha
-
-    @property
-    def soil_N(self) -> Optional[float]:
-        return self.soil.N
-
-    @property
-    def soil_P(self) -> Optional[float]:
-        return self.soil.P
-
-    @property
-    def soil_K(self) -> Optional[float]:
-        return self.soil.K
-
-    @property
-    def fertilizer_urea_kg(self) -> float:
-        return self.fertilizer.fertilizers.get("Urea", 0.0)
-
-    @property
-    def fertilizer_dap_kg(self) -> float:
-        return self.fertilizer.fertilizers.get("DAP", 0.0)
-
-    @property
-    def fertilizer_mop_kg(self) -> float:
-        return self.fertilizer.fertilizers.get("MOP", 0.0)
 
     @property
     def weather_temp(self) -> float:

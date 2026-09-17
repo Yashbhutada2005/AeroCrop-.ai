@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Sidebar, PageTab } from './Sidebar';
+import { MobileNav } from './MobileNav';
 import { BackgroundOrbs } from './BackgroundOrbs';
 
 interface AppShellProps {
@@ -13,6 +14,7 @@ export const AppShell: React.FC<AppShellProps> = ({ activeTab, onTabChange, chil
     <>
       <BackgroundOrbs />
       <div className="app-shell">
+        <MobileNav activeTab={activeTab} onTabChange={onTabChange} />
         <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
         <main className="main-content" role="main">
           {children}

@@ -52,7 +52,7 @@ async def get_diagnosis_detail(
     current_user: User = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Retrieve full prescription, NPK, and weather details for a single diagnosis."""
+    """Retrieve full prescription, treatments, and weather details for a single diagnosis."""
     detail = await HistoryService.get_diagnosis_detail(db, record_id, current_user.id)
     if not detail:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis record not found.")

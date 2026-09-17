@@ -254,7 +254,7 @@ function getLocalizedPathology(disease, cropObj) {
             description: disease.description || 'Pathological spotting and cellular necrosis detected on foliar lamina. Apply recommended protective fungicidal sprays.',
             chem: chemFallback,
             org: orgFallback,
-            cultural: ['Rogue out severely diseased foliage', 'Maintain balanced NPK fertilization', 'Keep field weed-free']
+            cultural: ['Rogue out severely diseased foliage', 'Maintain balanced crop nutrition', 'Keep field weed-free']
         }
     };
 }
@@ -267,7 +267,6 @@ function buildHTML(data) {
         district = 'पुणे (Pune)',
         crop = 'Tomato',
         disease = {},
-        fertilizer = {},
         yield_t_ha = 28.5,
         weather = {},
         now = new Date(),
@@ -291,26 +290,6 @@ function buildHTML(data) {
 
     const yieldHa = yield_t_ha ? parseFloat(yield_t_ha).toFixed(1) : '28.5';
     const yieldAcre = (parseFloat(yieldHa) * 4.047).toFixed(1);
-
-    // Fertilizer values
-    const ferts = fertilizer.fertilizers || {};
-    const ureaKg = ferts.Urea || 120;
-    const dapKg = ferts.DAP || 60;
-    const mopKg = ferts.MOP || 50;
-
-    const ureaBags = Math.ceil(ureaKg / 50);
-    const dapBags = Math.ceil(dapKg / 50);
-    const mopBags = Math.ceil(mopKg / 50);
-
-    const ureaCost = ureaBags * 267;
-    const dapCost = dapBags * 1350;
-    const mopCost = mopBags * 1700;
-    const totalFertCost = ureaCost + dapCost + mopCost;
-
-    // Soil NPK mock or real values
-    const soilN = 65, targetN = 100, defN = soilN - targetN;
-    const soilP = 32, targetP = 50, defP = soilP - targetP;
-    const soilK = 48, targetK = 50, defK = soilK - targetK;
 
     // Mandi Rates calculation
     const mandiPrice = 2450; // ₹ per quintal
@@ -579,11 +558,9 @@ function buildHTML(data) {
     margin-bottom: 3px;
   }
 
-  /* Soil NPK & Mandi Grid */
+  /* Mandi Grid */
   .agri-meta-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    display: block;
     margin-bottom: 8px;
   }
   .agri-card {
@@ -600,19 +577,6 @@ function buildHTML(data) {
     display: flex;
     align-items: center;
     gap: 5px;
-  }
-  .npk-pills {
-    display: flex;
-    gap: 6px;
-    margin-top: 3px;
-  }
-  .npk-item {
-    flex: 1;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    padding: 3px 5px;
-    text-align: center;
   }
 
   /* Table styling */
@@ -817,25 +781,8 @@ function buildHTML(data) {
     </div>
   </div>
 
-  <!-- माती पोषण व बाजारभाव माहिती -->
+  <!-- बाजारभाव माहिती -->
   <div class="agri-meta-grid">
-    <div class="agri-card">
-      <div class="agri-card-title">🧪 माती पोषण स्थिती (NPK Soil Nutrient Analysis प्रति हेक्टर):</div>
-      <div class="npk-pills">
-        <div class="npk-item">
-          <strong>नत्र (N):</strong> ${soilN} / ${targetN} kg<br>
-          <span style="color:${defN < 0 ? '#b91c1c' : '#15803d'}">कमतरता: ${defN} kg</span>
-        </div>
-        <div class="npk-item">
-          <strong>स्फुरद (P):</strong> ${soilP} / ${targetP} kg<br>
-          <span style="color:${defP < 0 ? '#b91c1c' : '#15803d'}">कमतरता: ${defP} kg</span>
-        </div>
-        <div class="npk-item">
-          <strong>पालाश (K):</strong> ${soilK} / ${targetK} kg<br>
-          <span style="color:${defK < 0 ? '#b91c1c' : '#15803d'}">कमतरता: ${defK} kg</span>
-        </div>
-      </div>
-    </div>
     <div class="agri-card">
       <div class="agri-card-title">📈 कृषी उत्पन्न बाजार समिती दर (APMC Mandi Intelligence):</div>
       <div style="display:flex; justify-content:space-between; margin-top:2px;">
@@ -845,47 +792,6 @@ function buildHTML(data) {
       <div style="color:#64748b; margin-top:2px;">अंदाजे एकरी उत्पन्न: ₹ ${grossRevenueAcre.toLocaleString('en-IN')} (स्थानिक बाजारातील सरासरी आवक दरानुसार).</div>
     </div>
   </div>
-
-  <!-- खत व्यवस्थापन तक्ता -->
-  <div class="section-heading">⚖️ संतुलित खत वाटप (ICAR व MPKV राहुरी मानकांनुसार प्रति हेक्टर):</div>
-  <table class="custom-table">
-    <thead>
-      <tr>
-        <th>खताचे नाव</th>
-        <th>डोस (किलो/हेक्टर)</th>
-        <th>आवश्यक ५० किलो पोती</th>
-        <th>अनुदानित सरासरी दर (प्रति पोते)</th>
-        <th>अंदाजे खर्च (₹)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>युरिया (Urea 46% N)</strong></td>
-        <td>${ureaKg} kg</td>
-        <td><strong>${ureaBags}</strong> पोती</td>
-        <td>₹ 267</td>
-        <td>₹ ${ureaCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr>
-        <td><strong>डीएपी (DAP 18-46-0)</strong></td>
-        <td>${dapKg} kg</td>
-        <td><strong>${dapBags}</strong> पोती</td>
-        <td>₹ 1,350</td>
-        <td>₹ ${dapCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr>
-        <td><strong>एमओपी (MOP 60% K)</strong></td>
-        <td>${mopKg} kg</td>
-        <td><strong>${mopBags}</strong> पोती</td>
-        <td>₹ 1,700</td>
-        <td>₹ ${mopCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr class="highlight-row">
-        <td colspan="4"><strong>एकूण अंदाजे खत गुंतवणूक (Total Input Cost)</strong></td>
-        <td><strong>₹ ${totalFertCost.toLocaleString('en-IN')}</strong></td>
-      </tr>
-    </tbody>
-  </table>
 
   <!-- हवामान व फवारणी सल्ला -->
   <div class="weather-spray-grid">
@@ -1024,25 +930,8 @@ function buildHTML(data) {
     </div>
   </div>
 
-  <!-- मृदा पोषण एवं मंडी भाव -->
+  <!-- मंडी भाव -->
   <div class="agri-meta-grid">
-    <div class="agri-card">
-      <div class="agri-card-title">🧪 मृदा पोषण स्थिति (NPK Soil Nutrient Analysis प्रति हेक्टेयर):</div>
-      <div class="npk-pills">
-        <div class="npk-item">
-          <strong>नाइट्रोजन (N):</strong> ${soilN} / ${targetN} kg<br>
-          <span style="color:${defN < 0 ? '#b91c1c' : '#15803d'}">कमी: ${defN} kg</span>
-        </div>
-        <div class="npk-item">
-          <strong>फॉस्फोरस (P):</strong> ${soilP} / ${targetP} kg<br>
-          <span style="color:${defP < 0 ? '#b91c1c' : '#15803d'}">कमी: ${defP} kg</span>
-        </div>
-        <div class="npk-item">
-          <strong>पोटाश (K):</strong> ${soilK} / ${targetK} kg<br>
-          <span style="color:${defK < 0 ? '#b91c1c' : '#15803d'}">कमी: ${defK} kg</span>
-        </div>
-      </div>
-    </div>
     <div class="agri-card">
       <div class="agri-card-title">📈 कृषि उपज मंडी समिति भाव (APMC Mandi Intelligence):</div>
       <div style="display:flex; justify-content:space-between; margin-top:2px;">
@@ -1052,47 +941,6 @@ function buildHTML(data) {
       <div style="color:#64748b; margin-top:2px;">अनुमानित प्रति एकड़ आय: ₹ ${grossRevenueAcre.toLocaleString('en-IN')} (स्थानीय मंडी के औसत आवक भाव पर आधारित).</div>
     </div>
   </div>
-
-  <!-- उर्वरक सारणी -->
-  <div class="section-heading">⚖️ संतुलित उर्वरक मात्रा (ICAR एवं कृषि विश्वविद्यालय मानक प्रति हेक्टेयर):</div>
-  <table class="custom-table">
-    <thead>
-      <tr>
-        <th>उर्वरक का नाम</th>
-        <th>मात्रा (किग्रा/हेक्टेयर)</th>
-        <th>आवश्यक ५० किग्रा बोरी</th>
-        <th>अनुदानित मूल्य (प्रति बोरी)</th>
-        <th>अनुमानित लागत (₹)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>यूरिया (Urea 46% N)</strong></td>
-        <td>${ureaKg} kg</td>
-        <td><strong>${ureaBags}</strong> बोरी</td>
-        <td>₹ 267</td>
-        <td>₹ ${ureaCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr>
-        <td><strong>डीएपी (DAP 18-46-0)</strong></td>
-        <td>${dapKg} kg</td>
-        <td><strong>${dapBags}</strong> बोरी</td>
-        <td>₹ 1,350</td>
-        <td>₹ ${dapCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr>
-        <td><strong>एमओपी (MOP 60% K)</strong></td>
-        <td>${mopKg} kg</td>
-        <td><strong>${mopBags}</strong> बोरी</td>
-        <td>₹ 1,700</td>
-        <td>₹ ${mopCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr class="highlight-row">
-        <td colspan="4"><strong>कुल अनुमानित उर्वरक लागत (Total Input Cost)</strong></td>
-        <td><strong>₹ ${totalFertCost.toLocaleString('en-IN')}</strong></td>
-      </tr>
-    </tbody>
-  </table>
 
   <!-- मौसम एवं छिड़काव सलाह -->
   <div class="weather-spray-grid">
@@ -1231,25 +1079,8 @@ function buildHTML(data) {
     </div>
   </div>
 
-  <!-- Soil NPK & Mandi Projections -->
+  <!-- Mandi Projections -->
   <div class="agri-meta-grid">
-    <div class="agri-card">
-      <div class="agri-card-title">🧪 Soil Macronutrient Status (NPK Analysis per Hectare):</div>
-      <div class="npk-pills">
-        <div class="npk-item">
-          <strong>Nitrogen (N):</strong> ${soilN} / ${targetN} kg<br>
-          <span style="color:${defN < 0 ? '#b91c1c' : '#15803d'}">Deficit: ${defN} kg</span>
-        </div>
-        <div class="npk-item">
-          <strong>Phosphorus (P):</strong> ${soilP} / ${targetP} kg<br>
-          <span style="color:${defP < 0 ? '#b91c1c' : '#15803d'}">Deficit: ${defP} kg</span>
-        </div>
-        <div class="npk-item">
-          <strong>Potassium (K):</strong> ${soilK} / ${targetK} kg<br>
-          <span style="color:${defK < 0 ? '#b91c1c' : '#15803d'}">Deficit: ${defK} kg</span>
-        </div>
-      </div>
-    </div>
     <div class="agri-card">
       <div class="agri-card-title">📈 APMC Mandi Market Intelligence & Revenue:</div>
       <div style="display:flex; justify-content:space-between; margin-top:2px;">
@@ -1259,47 +1090,6 @@ function buildHTML(data) {
       <div style="color:#64748b; margin-top:2px;">Estimated Gross Revenue: ₹ ${grossRevenueAcre.toLocaleString('en-IN')} / acre (Based on local APMC terminal modal rates).</div>
     </div>
   </div>
-
-  <!-- Fertilizer Table -->
-  <div class="section-heading">⚖️ Mineral Fertilizer Prescription (per Hectare under ICAR Guidelines):</div>
-  <table class="custom-table">
-    <thead>
-      <tr>
-        <th>Commercial Fertilizer</th>
-        <th>Recommended Dose (kg/ha)</th>
-        <th>Standard 50kg Bags</th>
-        <th>Subsidized Price / Bag</th>
-        <th>Approx Cost (₹)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>Urea (46% Nitrogen)</strong></td>
-        <td>${ureaKg} kg</td>
-        <td><strong>${ureaBags}</strong> bags</td>
-        <td>₹ 267</td>
-        <td>₹ ${ureaCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr>
-        <td><strong>DAP (18% N, 46% P₂O₅)</strong></td>
-        <td>${dapKg} kg</td>
-        <td><strong>${dapBags}</strong> bags</td>
-        <td>₹ 1,350</td>
-        <td>₹ ${dapCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr>
-        <td><strong>MOP (60% K₂O)</strong></td>
-        <td>${mopKg} kg</td>
-        <td><strong>${mopBags}</strong> bags</td>
-        <td>₹ 1,700</td>
-        <td>₹ ${mopCost.toLocaleString('en-IN')}</td>
-      </tr>
-      <tr class="highlight-row">
-        <td colspan="4"><strong>Estimated Total Fertilizer Input Cost</strong></td>
-        <td><strong>₹ ${totalFertCost.toLocaleString('en-IN')}</strong></td>
-      </tr>
-    </tbody>
-  </table>
 
   <!-- Weather & Spray Advice -->
   <div class="weather-spray-grid">
@@ -1334,7 +1124,7 @@ function buildHTML(data) {
   </div>
 
   <div class="doc-footer">
-    <span>AeroCrop.ai • Computer Vision Pathology & ICAR Nutrient Intelligence</span>
+    <span>AeroCrop.ai • Computer Vision Pathology & Yield Intelligence</span>
     <span>Page 3 / 3 (English)</span>
   </div>
 </div>

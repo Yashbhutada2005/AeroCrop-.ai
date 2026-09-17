@@ -31,9 +31,6 @@ export interface FarmPlot {
   area_acres: number;
   sowing_date: string | null;
   soil_type: string;
-  baseline_N: number;
-  baseline_P: number;
-  baseline_K: number;
   notes: string | null;
   created_at: string;
   total_diagnoses: number;
@@ -59,18 +56,8 @@ export interface DiseaseInfo {
   description: string;
   chemical_treatment: string[];
   organic_treatment: string[];
-}
-
-export interface NPKValues {
-  N: number;
-  P: number;
-  K: number;
-}
-
-export interface FertilizerQuantities {
-  Urea: number;
-  DAP: number;
-  MOP: number;
+  chemical_cost?: string;
+  organic_cost?: string;
 }
 
 export interface SprayWindowInfo {
@@ -90,13 +77,6 @@ export interface WeatherData {
   wind_speed?: number;
   spray_window?: SprayWindowInfo;
   source: 'live' | 'cache' | 'mock' | 'api';
-}
-
-export interface CommercialBagItem {
-  kg: number;
-  bags_50kg: number;
-  bag_price_inr: number;
-  cost_inr: number;
 }
 
 export interface RevenueProjection {
@@ -125,18 +105,6 @@ export interface MandiRateInfo {
   revenue_projection?: RevenueProjection | null;
 }
 
-export interface FertilizerAdvice {
-  mode?: 'standard_pop' | 'soil_test';
-  soil?: NPKValues | null;
-  target: NPKValues;
-  deficit: NPKValues;
-  fertilizers: FertilizerQuantities;
-  interpretation: string;
-  surplus_n_warning: string | null;
-  commercial_bags?: Record<string, CommercialBagItem>;
-  total_cost_inr_ha?: number;
-}
-
 export interface PredictionResult {
   crop: string;
   district: string;
@@ -148,7 +116,6 @@ export interface PredictionResult {
   image_url: string | null;
   disease: DiseaseInfo;
   yield_t_ha: number;
-  fertilizer: FertilizerAdvice;
   weather: WeatherData;
   mandi?: MandiRateInfo;
   email_status?: 'queued' | 'sent' | null;
@@ -177,6 +144,8 @@ export interface DiseaseClassItem {
   description: string;
   chemical_treatment: string[];
   organic_treatment: string[];
+  chemical_cost?: string;
+  organic_cost?: string;
 }
 
 export interface AnalysisProgressItem {
@@ -193,11 +162,6 @@ export interface AnalysisProgressItem {
   weather_temp?: number | null;
   weather_hum?: number | null;
   weather_rain?: number | null;
-  fertilizers?: {
-    urea_kg?: number | null;
-    dap_kg?: number | null;
-    mop_kg?: number | null;
-  };
 }
 
 export interface CropProgressPlot {
@@ -238,7 +202,6 @@ export interface DiagnosisDetail {
   image_url: string | null;
   disease: DiseaseInfo;
   yield_t_ha: number;
-  fertilizer: FertilizerAdvice;
   weather: WeatherData;
   low_confidence: boolean;
   mock_mode: boolean;

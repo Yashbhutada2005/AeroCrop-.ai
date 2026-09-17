@@ -35,7 +35,6 @@ def make_dummy_jpeg(width: int = 224, height: int = 224) -> bytes:
 DUMMY_IMAGE = make_dummy_jpeg()
 DEFAULT_KWARGS = dict(
     image_bytes=DUMMY_IMAGE,
-    N=60.0, P=30.0, K=30.0,
     temperature=28.0,
     humidity=65.0,
     rainfall=3.0,
@@ -83,7 +82,7 @@ class TestPredictReturnSchema:
         assert "probabilities" in result
 
     def test_disease_class_in_range(self, result):
-        assert 0 <= result["disease_class"] <= 49
+        assert 0 <= result["disease_class"] < config.NUM_DISEASE_CLASSES
 
     def test_confidence_in_unit_range(self, result):
         assert 0.0 <= result["confidence"] <= 1.0
@@ -108,13 +107,12 @@ class TestPredictReturnSchema:
 class TestNormalisation:
     """
     InferenceService.normalise_tabular() should produce Z-scores in a sensible
-    range (not the +50 to +5000 outliers of the unfixed mismatch bug).
+    range for 3-dim weather inputs (temperature, humidity, rainfall).
     """
 
     def test_typical_inputs_within_5_sigma(self):
         svc    = InferenceService()
         tensor = svc._normalise_tabular(
-            N=60, P=30, K=30,
             temperature=28, humidity=65, rainfall=3.0
         )
         vals = tensor.cpu().numpy().flatten()
@@ -125,16 +123,14 @@ class TestNormalisation:
     def test_high_humidity_within_5_sigma(self):
         svc    = InferenceService()
         tensor = svc._normalise_tabular(
-            N=80, P=40, K=40,
             temperature=35, humidity=90, rainfall=0.0
         )
         vals = tensor.cpu().numpy().flatten()
         assert np.all(np.abs(vals) < 10.0)
 
-    def test_output_shape_is_1x6(self):
+    def test_output_shape_is_1x3(self):
         svc    = InferenceService()
         tensor = svc._normalise_tabular(
-            N=60, P=30, K=30,
             temperature=28, humidity=65, rainfall=3.0
         )
-        assert tensor.shape == (1, 6), f"Expected shape (1,6), got {tensor.shape}"
+        assert tensor.shape == (1, 3), f"Expected shape (1,3), got {tensor.shape}"

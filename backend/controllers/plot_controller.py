@@ -42,9 +42,6 @@ class CreatePlotRequest(BaseModel):
     area_acres: float = Field(1.0, gt=0, description="Plot size in acres")
     sowing_date: Optional[date] = Field(None, description="Date of sowing (YYYY-MM-DD)")
     soil_type: str = Field("Medium Black", description="Soil classification")
-    baseline_N: Optional[float] = Field(None, ge=0, description="Soil Nitrogen baseline (kg/ha)")
-    baseline_P: Optional[float] = Field(None, ge=0, description="Soil Phosphorus baseline (kg/ha)")
-    baseline_K: Optional[float] = Field(None, ge=0, description="Soil Potassium baseline (kg/ha)")
     notes: Optional[str] = Field(None, description="Optional notes or irrigation details")
 
 
@@ -54,9 +51,6 @@ class UpdatePlotRequest(BaseModel):
     area_acres: Optional[float] = Field(None, gt=0)
     sowing_date: Optional[date] = None
     soil_type: Optional[str] = None
-    baseline_N: Optional[float] = Field(None, ge=0)
-    baseline_P: Optional[float] = Field(None, ge=0)
-    baseline_K: Optional[float] = Field(None, ge=0)
     notes: Optional[str] = None
 
 
@@ -86,9 +80,6 @@ async def create_plot(
         area_acres=req.area_acres,
         sowing_date=req.sowing_date,
         soil_type=req.soil_type,
-        baseline_N=req.baseline_N,
-        baseline_P=req.baseline_P,
-        baseline_K=req.baseline_K,
         notes=req.notes,
     )
     if err:
@@ -104,9 +95,6 @@ async def create_plot(
             "area_acres": plot.area_acres,
             "sowing_date": _format_date(plot.sowing_date),
             "soil_type": plot.soil_type,
-            "baseline_N": plot.baseline_N,
-            "baseline_P": plot.baseline_P,
-            "baseline_K": plot.baseline_K,
             "notes": plot.notes,
         },
     }
@@ -130,9 +118,6 @@ async def get_plot(
         "area_acres": plot.area_acres,
         "sowing_date": _format_date(plot.sowing_date),
         "soil_type": plot.soil_type,
-        "baseline_N": plot.baseline_N,
-        "baseline_P": plot.baseline_P,
-        "baseline_K": plot.baseline_K,
         "notes": plot.notes,
         "created_at": _format_date(plot.created_at),
     }
@@ -155,9 +140,6 @@ async def update_plot(
         area_acres=req.area_acres,
         sowing_date=req.sowing_date,
         soil_type=req.soil_type,
-        baseline_N=req.baseline_N,
-        baseline_P=req.baseline_P,
-        baseline_K=req.baseline_K,
         notes=req.notes,
     )
     if err:
@@ -173,9 +155,6 @@ async def update_plot(
             "area_acres": plot.area_acres,
             "sowing_date": _format_date(plot.sowing_date),
             "soil_type": plot.soil_type,
-            "baseline_N": plot.baseline_N,
-            "baseline_P": plot.baseline_P,
-            "baseline_K": plot.baseline_K,
             "notes": plot.notes,
         },
     }

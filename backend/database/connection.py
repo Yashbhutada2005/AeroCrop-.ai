@@ -71,8 +71,8 @@ async def init_db() -> None:
                 try:
                     diag_info = await conn.execute(text("PRAGMA table_info(diagnosis_records);"))
                     diag_cols = diag_info.fetchall()
-                    soil_n_col = next((row for row in diag_cols if row[1] == "soil_N"), None)
-                    if soil_n_col and soil_n_col[3] == 1:
+                    col_names = [row[1] for row in diag_cols]
+                    if diag_cols and ("soil_N" in col_names or "fertilizer_urea_kg" in col_names):
                         await conn.execute(text("PRAGMA foreign_keys=OFF;"))
                         await conn.execute(text("""
                             CREATE TABLE IF NOT EXISTS diagnosis_records_new (
@@ -89,12 +89,6 @@ async def init_db() -> None:
                                 severity VARCHAR(32) DEFAULT 'None',
                                 is_healthy BOOLEAN DEFAULT 0,
                                 predicted_yield_t_ha FLOAT DEFAULT 0.0,
-                                soil_N FLOAT,
-                                soil_P FLOAT,
-                                soil_K FLOAT,
-                                fertilizer_urea_kg FLOAT DEFAULT 0.0,
-                                fertilizer_dap_kg FLOAT DEFAULT 0.0,
-                                fertilizer_mop_kg FLOAT DEFAULT 0.0,
                                 weather_temp FLOAT DEFAULT 0.0,
                                 weather_hum FLOAT DEFAULT 0.0,
                                 weather_rain FLOAT DEFAULT 0.0,
@@ -103,7 +97,15 @@ async def init_db() -> None:
                                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                             );
                         """))
-                        await conn.execute(text("INSERT INTO diagnosis_records_new SELECT * FROM diagnosis_records;"))
+                        common_cols = [c for c in col_names if c in [
+                            "id", "user_id", "plot_id", "crop_type", "district",
+                            "image_filename", "image_url", "disease_class_idx",
+                            "disease_name", "confidence", "severity", "is_healthy",
+                            "predicted_yield_t_ha", "weather_temp", "weather_hum",
+                            "weather_rain", "mock_mode", "low_confidence", "created_at"
+                        ]]
+                        cols_str = ", ".join(common_cols)
+                        await conn.execute(text(f"INSERT INTO diagnosis_records_new ({cols_str}) SELECT {cols_str} FROM diagnosis_records;"))
                         await conn.execute(text("DROP TABLE diagnosis_records;"))
                         await conn.execute(text("ALTER TABLE diagnosis_records_new RENAME TO diagnosis_records;"))
                         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_diagnosis_records_user_id ON diagnosis_records (user_id);"))
@@ -111,7 +113,7 @@ async def init_db() -> None:
                         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_diagnosis_records_created_at ON diagnosis_records (created_at);"))
                         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_user_diagnoses_created_at ON diagnosis_records (user_id, created_at DESC);"))
                         await conn.execute(text("PRAGMA foreign_keys=ON;"))
-                        logger.info("[Database] Migrated 'diagnosis_records' table: made soil nutrient columns nullable.")
+                        logger.info("[Database] Migrated 'diagnosis_records' table: purged NPK and fertilizer columns.")
                 except Exception as mig_err:
                     logger.debug("[Database] diagnosis_records migration skipped or not needed: %s", mig_err)
 

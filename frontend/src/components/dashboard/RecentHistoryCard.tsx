@@ -155,7 +155,9 @@ export const RecentHistoryCard: React.FC = () => {
             const cropName = (r.crop_type || 'Crop').toUpperCase();
             const districtName = (r.district || 'Maharashtra').toUpperCase();
             const confVal = r.confidence != null ? Number(r.confidence).toFixed(1) : '--';
-            const yieldVal = r.predicted_yield_t_ha != null ? r.predicted_yield_t_ha : '--';
+            const yieldVal = r.predicted_yield_t_ha != null
+              ? `${(Number(r.predicted_yield_t_ha) * 4.047).toFixed(1)} Quintal / Acre`
+              : '--';
 
             return (
               <div
@@ -183,7 +185,7 @@ export const RecentHistoryCard: React.FC = () => {
                     {r.plot_name ? ` · ${t('plot_label')} ${r.plot_name}` : ''} · {dateStr} {timeStr}
                   </p>
                   <p className="history-meta">
-                    {t('yield_label')} {yieldVal} t/ha · {t('confidence_label')} {confVal}%
+                    {t('yield_label')} {yieldVal} · {t('confidence_label')} {confVal}%
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

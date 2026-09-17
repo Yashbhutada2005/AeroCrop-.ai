@@ -94,9 +94,7 @@ export const MandiCard: React.FC<MandiCardProps> = ({ mandi }) => {
             </div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            <span>{t('est_harvest')} {mandi.revenue_projection.yield_quintals_per_acre} q/acre</span>
-            <br />
-            <span>({mandi.revenue_projection.yield_t_ha} t/ha)</span>
+            <span>{t('est_harvest')} {mandi.revenue_projection.yield_quintals_per_acre} Quintal / Acre</span>
           </div>
         </div>
       )}

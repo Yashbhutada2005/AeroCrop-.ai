@@ -2,7 +2,7 @@
 AeroCrop.ai — Model Training Pipeline (Model Layer)
 
 Trains MultiModalAeroCropNet using:
-  - Disease images:  New Plant Diseases Dataset (Augmented) — 87,900 images, 38 classes
+  - Disease images:  Multi-Source Agricultural Pathology Dataset — 166,630 images, 134 classes across 11 crops
   - Yield tabular:   yield_df.csv — FAO yield + meteorological telemetry
 
 Features & Optimizations:
@@ -61,8 +61,8 @@ def parse_args():
     parser.add_argument(
         "--yield_csv",
         type=str,
-        default=r"data\yield_df.csv",
-        help="Path to yield_df.csv",
+        default=r"data\crop_yield.csv" if os.path.exists(r"data\crop_yield.csv") or os.path.exists(os.path.join(config.DATA_DIR, "crop_yield.csv")) else r"data\yield_df.csv",
+        help="Path to crop_yield.csv or yield_df.csv",
     )
     parser.add_argument(
         "--num_classes",
@@ -78,8 +78,8 @@ def parse_args():
                         help="Peak learning rate for AdamW")
     parser.add_argument("--alpha",        type=float, default=1.0,
                         help="Weight for disease classification loss")
-    parser.add_argument("--beta",         type=float, default=0.05,
-                        help="Weight for yield regression loss")
+    parser.add_argument("--beta",         type=float, default=0.20,
+                        help="Weight for yield regression loss (0.20 gives balanced gradient signal)")
     parser.add_argument("--workers",      type=int,   default=min(os.cpu_count() or 4, 4),
                         help="DataLoader num_workers (4 recommended for multi-worker async prefetch)")
     parser.add_argument("--no_pretrained", action="store_true",
@@ -164,30 +164,56 @@ def safe_torch_save(obj, target_path: str):
 
 # ── Metrics Tracking ───────────────────────────────────────────────────────
 class MetricsTracker:
-    def __init__(self):
+    def __init__(self, num_classes: int = 134):
+        self.num_classes = num_classes
         self.reset()
 
     def reset(self):
         self.total, self.correct, self.loss_sum = 0, 0, 0.0
-        self.yield_mse_sum, self.n_batches = 0.0, 0
+        self.loss_cls_sum, self.loss_reg_sum = 0.0, 0.0
+        self.yield_mse_sum, self.yield_mae_sum, self.n_batches = 0.0, 0.0, 0
+        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.int64)
 
-    def update(self, logits, labels, yield_pred, yield_true, loss):
+    def update(self, logits, labels, yield_pred, yield_true, loss, loss_cls=None, loss_reg=None):
         preds = logits.argmax(dim=1)
         self.correct     += (preds == labels).sum().item()
         self.total       += labels.size(0)
         self.loss_sum    += loss.item()
+        if loss_cls is not None:
+            self.loss_cls_sum += loss_cls.item()
+        if loss_reg is not None:
+            self.loss_reg_sum += loss_reg.item()
         self.n_batches   += 1
         if yield_pred is not None and yield_true is not None:
-            mse = ((yield_pred - yield_true) ** 2).mean().item()
+            diff = yield_pred - yield_true
+            mse = (diff ** 2).mean().item()
+            mae = diff.abs().mean().item()
             self.yield_mse_sum += mse
+            self.yield_mae_sum += mae
+
+        # Update confusion matrix for precision & F1 computation
+        p_cpu = preds.detach().cpu()
+        l_cpu = labels.detach().cpu()
+        mask = (l_cpu >= 0) & (l_cpu < self.num_classes) & (p_cpu >= 0) & (p_cpu < self.num_classes)
+        indices = l_cpu[mask] * self.num_classes + p_cpu[mask]
+        bincount = torch.bincount(indices, minlength=self.num_classes * self.num_classes)
+        self.confusion_matrix += bincount.reshape(self.num_classes, self.num_classes)
 
     @property
     def accuracy(self):
-        return 100.0 * self.correct / self.total if self.total else 0
+        return 100.0 * self.correct / self.total if self.total else 0.0
 
     @property
     def avg_loss(self):
-        return self.loss_sum / self.n_batches if self.n_batches else 0
+        return self.loss_sum / self.n_batches if self.n_batches else 0.0
+
+    @property
+    def avg_loss_cls(self):
+        return self.loss_cls_sum / self.n_batches if self.n_batches else 0.0
+
+    @property
+    def avg_loss_reg(self):
+        return self.loss_reg_sum / self.n_batches if self.n_batches else 0.0
 
     @property
     def avg_yield_rmse(self):
@@ -195,6 +221,52 @@ class MetricsTracker:
             return None
         mse = self.yield_mse_sum / self.n_batches
         return mse ** 0.5
+
+    @property
+    def avg_yield_mae(self):
+        if self.n_batches == 0 or self.yield_mae_sum == 0.0:
+            return None
+        return self.yield_mae_sum / self.n_batches
+
+    @property
+    def precision_macro(self):
+        """Macro Precision (%) across active predicted classes."""
+        tp = self.confusion_matrix.diag().float()
+        pred_pos = self.confusion_matrix.sum(dim=0).float()
+        active = pred_pos > 0
+        if not active.any():
+            return 0.0
+        prec = tp[active] / pred_pos[active]
+        return float(prec.mean().item()) * 100.0
+
+    @property
+    def recall_macro(self):
+        """Macro Recall (%) across active ground truth classes."""
+        tp = self.confusion_matrix.diag().float()
+        actual_pos = self.confusion_matrix.sum(dim=1).float()
+        active = actual_pos > 0
+        if not active.any():
+            return 0.0
+        rec = tp[active] / actual_pos[active]
+        return float(rec.mean().item()) * 100.0
+
+    @property
+    def f1_macro(self):
+        """Macro F1-score (%) across classes."""
+        tp = self.confusion_matrix.diag().float()
+        pred_pos = self.confusion_matrix.sum(dim=0).float()
+        actual_pos = self.confusion_matrix.sum(dim=1).float()
+        active = (pred_pos + actual_pos) > 0
+        if not active.any():
+            return 0.0
+        prec = torch.zeros_like(tp)
+        rec = torch.zeros_like(tp)
+        prec[pred_pos > 0] = tp[pred_pos > 0] / pred_pos[pred_pos > 0]
+        rec[actual_pos > 0] = tp[actual_pos > 0] / actual_pos[actual_pos > 0]
+        denom = prec + rec
+        f1 = torch.zeros_like(tp)
+        f1[denom > 0] = 2.0 * (prec[denom > 0] * rec[denom > 0]) / denom[denom > 0]
+        return float(f1[active].mean().item()) * 100.0
 
 
 # ── Training & Validation Loops ───────────────────────────────────────────
@@ -211,9 +283,10 @@ def train_one_epoch(
     use_amp: bool,
     epoch: int = 1,
     total_epochs: int = 15,
+    num_classes: int = 134,
 ) -> MetricsTracker:
     model.train()
-    tracker = MetricsTracker()
+    tracker = MetricsTracker(num_classes=num_classes)
     total_batches = len(loader)
     report_interval = max(1, min(50, total_batches // 5)) if total_batches > 10 else max(1, total_batches // 2)
     t_start = time.time()
@@ -254,7 +327,8 @@ def train_one_epoch(
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
-        tracker.update(disease_logits, labels, yield_pred, yield_true, loss)
+        loss_reg_val = loss_reg if yield_true is not None else None
+        tracker.update(disease_logits, labels, yield_pred, yield_true, loss, loss_cls=loss_cls, loss_reg=loss_reg_val)
 
         if step % report_interval == 0 or step == total_batches:
             elapsed = time.time() - t_start
@@ -263,7 +337,7 @@ def train_one_epoch(
             sys.stdout.write(
                 f"\r    [Ep {epoch}/{total_epochs}] Batch {step:>4}/{total_batches} "
                 f"| Loss: {tracker.avg_loss:.4f} | Acc: {tracker.accuracy:.1f}% "
-                f"| Speed: {speed:.1f} img/s"
+                f"| Prec: {tracker.precision_macro:.1f}% | Speed: {speed:.1f} img/s"
             )
             sys.stdout.flush()
 
@@ -281,9 +355,10 @@ def validate(
     alpha: float,
     beta: float,
     use_amp: bool,
+    num_classes: int = 134,
 ) -> MetricsTracker:
     model.eval()
-    tracker = MetricsTracker()
+    tracker = MetricsTracker(num_classes=num_classes)
 
     for batch in loader:
         if len(batch) == 4:
@@ -308,7 +383,8 @@ def validate(
             else:
                 loss = loss_cls
 
-        tracker.update(disease_logits, labels, yield_pred, yield_true, loss)
+        loss_reg_val = loss_reg if yield_true is not None else None
+        tracker.update(disease_logits, labels, yield_pred, yield_true, loss, loss_cls=loss_cls, loss_reg=loss_reg_val)
 
     return tracker
 
@@ -346,7 +422,8 @@ def main():
     # ── Dataset Auto-Resolution ───────────────────────────────────────────
     img_train_abs = resolve_dir(args.image_dir, "train")
     img_val_abs   = resolve_dir(args.val_dir, "valid")
-    yield_csv_abs = resolve_file(args.yield_csv, "yield_df.csv")
+    yield_fallback = "crop_yield.csv" if os.path.exists(os.path.join(config.DATA_DIR, "crop_yield.csv")) else "yield_df.csv"
+    yield_csv_abs = resolve_file(args.yield_csv, yield_fallback)
 
     if not os.path.exists(img_train_abs):
         print(f"[ERROR] Image training directory not found: {img_train_abs}")
@@ -434,38 +511,6 @@ def main():
         pretrained=pretrained,
     ).to(device)
 
-    # Resume from checkpoint if requested, or warm-start from baseline weights
-    if args.resume and os.path.exists(args.resume):
-        checkpoint = torch.load(args.resume, map_location=device, weights_only=True)
-        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
-            model.load_state_dict(checkpoint["model_state_dict"])
-        else:
-            model.load_state_dict(checkpoint)
-        print(f"\n  [Resume] Loaded model weights from {args.resume}")
-    else:
-        baseline_path = os.path.join(config.MODEL_DIR, "aerocrop_weights_baseline38.pth")
-        if os.path.exists(baseline_path):
-            try:
-                old_state = torch.load(baseline_path, map_location=device, weights_only=True)
-                if isinstance(old_state, dict) and "model_state_dict" in old_state:
-                    old_state = old_state["model_state_dict"]
-                new_state = model.state_dict()
-                transferred = 0
-                for k, v in old_state.items():
-                    if k in new_state and new_state[k].shape == v.shape:
-                        new_state[k] = v
-                        transferred += 1
-                    elif k == "disease_head.weight" and v.shape[0] <= new_state[k].shape[0]:
-                        new_state[k][:v.shape[0]] = v
-                        transferred += 1
-                    elif k == "disease_head.bias" and v.shape[0] <= new_state[k].shape[0]:
-                        new_state[k][:v.shape[0]] = v
-                        transferred += 1
-                model.load_state_dict(new_state)
-                print(f"  [Warm-Start] Successfully transferred {transferred} layers from 38-class baseline model!")
-            except Exception as e:
-                print(f"  [Warm-Start] Could not warm-start ({e}); starting from ImageNet weights.")
-
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  Model Params  : {total_params:,} parameters")
 
@@ -478,27 +523,64 @@ def main():
     criterion_cls = nn.CrossEntropyLoss(label_smoothing=0.1)
     criterion_reg = nn.SmoothL1Loss(beta=1.0)  # Robust Huber loss for yield
 
+    start_epoch = 1
+    best_val_acc = 0.0
+    best_val_loss = float("inf")
+    best_val_rmse = float("inf")
+
+    # Resume from checkpoint if requested, or warm-start from baseline weights
+    if args.resume and os.path.exists(args.resume):
+        checkpoint = torch.load(args.resume, map_location=device, weights_only=True)
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+            if "epoch" in checkpoint:
+                start_epoch = int(checkpoint["epoch"]) + 1
+            if "best_val_acc" in checkpoint:
+                best_val_acc = float(checkpoint["best_val_acc"])
+            if "best_val_loss" in checkpoint:
+                best_val_loss = float(checkpoint["best_val_loss"])
+            if "best_val_rmse" in checkpoint:
+                best_val_rmse = float(checkpoint["best_val_rmse"])
+            if "optimizer_state_dict" in checkpoint:
+                try:
+                    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+                except Exception as e:
+                    print(f"  [Resume Warning] Could not load optimizer state: {e}")
+            for pg in optimizer.param_groups:
+                pg["lr"] = args.lr
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
+            for _ in range(checkpoint.get("epoch", 0)):
+                scheduler.step()
+            print(f"\n  [Resume] Loaded checkpoint from {args.resume}")
+            print(f"  [Resume] Resuming at Epoch {start_epoch} of {args.epochs} | Best Val Acc: {best_val_acc:.2f}% | Best Loss: {best_val_loss:.4f} | Best Yield RMSE: {best_val_rmse:.4f}")
+        else:
+            model.load_state_dict(checkpoint)
+            print(f"\n  [Resume] Loaded model weights from {args.resume}")
+
     # ── Metrics CSV Log ────────────────────────────────────────────────────
     output_stem = Path(save_weights_path).stem
     log_filename = f"training_log_{output_stem}.csv" if output_stem != "aerocrop_weights" else "training_log.csv"
     log_path = os.path.join(config.MODEL_DIR, log_filename)
-    log_file = open(log_path, "w", newline="")
+    is_resuming = bool(args.resume and os.path.exists(log_path) and start_epoch > 1)
+    log_file = open(log_path, "a" if is_resuming else "w", newline="")
     log_writer = csv.writer(log_file)
-    log_writer.writerow([
-        "epoch", "train_loss", "train_acc", "train_yield_rmse",
-        "val_loss", "val_acc", "val_yield_rmse", "lr", "elapsed_s"
-    ])
+    if not is_resuming:
+        log_writer.writerow([
+            "epoch", "train_loss", "train_loss_cls", "train_loss_reg", "train_acc", "train_prec", "train_f1", "train_yield_rmse", "train_yield_mae",
+            "val_loss", "val_loss_cls", "val_loss_reg", "val_acc", "val_prec", "val_f1", "val_yield_rmse", "val_yield_mae", "lr", "elapsed_s", "gpu_mem_mb"
+        ])
+    else:
+        print(f"  Metrics Log   : Appending to existing {log_path} from epoch {start_epoch}")
 
-    best_val_acc = 0.0
     t0 = time.time()
 
-    print("\n" + "-" * 72)
-    print(f"  {'Ep':>3} | {'TrLoss':>8} | {'TrAcc%':>7} | "
-          f"{'VaLoss':>8} | {'VaAcc%':>7} | {'YldRMSE':>8} | {'LR':>9}")
-    print("-" * 72)
+    print("\n" + "-" * 118)
+    print(f"  {'Ep':>3} | {'TrLoss (Cls/Reg)':>17} | {'TrAcc%':>6} | "
+          f"{'VaLoss (Cls/Reg)':>17} | {'VaAcc%':>6} | {'VaPrec%':>7} | {'VaF1%':>6} | {'YldRMSE':>7} | {'YldMAE':>7} | {'Mem(MB)':>7} | {'LR':>8}")
+    print("-" * 118)
 
     try:
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(start_epoch, args.epochs + 1):
             ep_start = time.time()
 
             tr = train_one_epoch(
@@ -514,6 +596,7 @@ def main():
                 use_amp=use_amp,
                 epoch=epoch,
                 total_epochs=args.epochs,
+                num_classes=num_classes,
             )
             va = validate(
                 model=model,
@@ -524,37 +607,63 @@ def main():
                 alpha=args.alpha,
                 beta=args.beta,
                 use_amp=use_amp,
+                num_classes=num_classes,
             )
             scheduler.step()
 
             elapsed = time.time() - ep_start
             lr_now  = scheduler.get_last_lr()[0]
+            gpu_mem = round(torch.cuda.memory_reserved() / (1024**2), 1) if device.type == "cuda" else 0.0
 
+            tr_loss_str = f"{tr.avg_loss:.3f} ({tr.avg_loss_cls:.2f}/{tr.avg_loss_reg:.2f})"
+            va_loss_str = f"{va.avg_loss:.3f} ({va.avg_loss_cls:.2f}/{va.avg_loss_reg:.2f})"
             rmse_str = f"{va.avg_yield_rmse:>7.4f}" if va.avg_yield_rmse is not None else "    N/A"
-            print(f"  {epoch:>3} | {tr.avg_loss:>8.4f} | {tr.accuracy:>6.2f}% | "
-                  f"{va.avg_loss:>8.4f} | {va.accuracy:>6.2f}% | "
-                  f"{rmse_str} | {lr_now:>9.2e}")
+            mae_str  = f"{va.avg_yield_mae:>7.4f}"  if va.avg_yield_mae is not None else "    N/A"
+
+            print(f"  {epoch:>3} | {tr_loss_str:>17} | {tr.accuracy:>5.1f}% | "
+                  f"{va_loss_str:>17} | {va.accuracy:>5.1f}% | {va.precision_macro:>6.1f}% | {va.f1_macro:>5.1f}% | "
+                  f"{rmse_str} | {mae_str} | {gpu_mem:>7.1f} | {lr_now:>8.2e}")
 
             log_writer.writerow([
-                epoch, round(tr.avg_loss, 5), round(tr.accuracy, 3),
+                epoch,
+                round(tr.avg_loss, 5), round(tr.avg_loss_cls, 5), round(tr.avg_loss_reg, 5),
+                round(tr.accuracy, 3), round(tr.precision_macro, 3), round(tr.f1_macro, 3),
                 round(tr.avg_yield_rmse, 4) if tr.avg_yield_rmse is not None else "",
-                round(va.avg_loss, 5), round(va.accuracy, 3),
+                round(tr.avg_yield_mae, 4)  if tr.avg_yield_mae is not None else "",
+                round(va.avg_loss, 5), round(va.avg_loss_cls, 5), round(va.avg_loss_reg, 5),
+                round(va.accuracy, 3), round(va.precision_macro, 3), round(va.f1_macro, 3),
                 round(va.avg_yield_rmse, 4) if va.avg_yield_rmse is not None else "",
-                f"{lr_now:.2e}", round(elapsed, 1),
+                round(va.avg_yield_mae, 4)  if va.avg_yield_mae is not None else "",
+                f"{lr_now:.2e}", round(elapsed, 1), gpu_mem,
             ])
             log_file.flush()
 
-            # Save best checkpoint
+            # Save best disease accuracy checkpoint
             if va.accuracy > best_val_acc:
                 best_val_acc = va.accuracy
                 safe_torch_save(model.state_dict(), save_weights_path)
-                print(f"         [BEST] New best val acc: {best_val_acc:.2f}% -> saved to {save_weights_path}")
+                print(f"         [BEST ACC] New best val acc: {best_val_acc:.2f}% -> saved to {save_weights_path}")
+
+            # Save best yield RMSE checkpoint
+            if va.avg_yield_rmse is not None and va.avg_yield_rmse < best_val_rmse:
+                best_val_rmse = va.avg_yield_rmse
+                best_yield_path = str(Path(save_weights_path).with_name(f"{Path(save_weights_path).stem}_best_yield.pth"))
+                safe_torch_save(model.state_dict(), best_yield_path)
+                print(f"         [BEST YIELD] New best val RMSE: {best_val_rmse:.4f} t/ha -> saved to {best_yield_path}")
+
+            # Save best overall multi-task loss checkpoint
+            if va.avg_loss < best_val_loss:
+                best_val_loss = va.avg_loss
+                best_loss_path = str(Path(save_weights_path).with_name(f"{Path(save_weights_path).stem}_best_loss.pth"))
+                safe_torch_save(model.state_dict(), best_loss_path)
 
             # Save latest checkpoint for resumption
             latest_path = os.path.join(config.MODEL_DIR, "checkpoint_latest.pth")
             safe_torch_save({
                 "epoch": epoch,
                 "best_val_acc": best_val_acc,
+                "best_val_loss": best_val_loss,
+                "best_val_rmse": best_val_rmse,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
             }, latest_path)

@@ -1,7 +1,7 @@
 """
 AeroCrop.ai — Email Microservice Client
 
-Dispatches crop analysis reports, pathology diagnoses, fertilizer advice,
+Dispatches crop analysis reports, pathology diagnoses,
 and weather telemetry to the Node.js email service to generate a PDF and
 email it directly to the farmer.
 """
@@ -41,7 +41,6 @@ class EmailService:
             "district": report_data.get("district", "Maharashtra"),
             "yield_t_ha": report_data.get("yield_t_ha"),
             "disease": report_data.get("disease", {}),
-            "fertilizer": report_data.get("fertilizer", {}),
             "weather": report_data.get("weather", {}),
         }
 

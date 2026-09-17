@@ -11,12 +11,6 @@ interface ParamsCardProps {
   districts: string[];
   selectedPlotId: string;
   setSelectedPlotId: (id: string) => void;
-  soilN: number | '';
-  setSoilN: (val: number | '') => void;
-  soilP: number | '';
-  setSoilP: (val: number | '') => void;
-  soilK: number | '';
-  setSoilK: (val: number | '') => void;
   farmerEmail: string;
   setFarmerEmail: (val: string) => void;
   onAnalyze: () => void;
@@ -31,12 +25,6 @@ export const ParamsCard: React.FC<ParamsCardProps> = ({
   districts,
   selectedPlotId,
   setSelectedPlotId,
-  soilN,
-  setSoilN,
-  soilP,
-  setSoilP,
-  soilK,
-  setSoilK,
   farmerEmail,
   setFarmerEmail,
   onAnalyze,
@@ -54,10 +42,7 @@ export const ParamsCard: React.FC<ParamsCardProps> = ({
       const plot = userPlots.find((p) => p.id === parseInt(plotIdStr, 10));
       if (plot) {
         setCrop(plot.crop_type);
-        if (plot.baseline_N != null) setSoilN(plot.baseline_N);
-        if (plot.baseline_P != null) setSoilP(plot.baseline_P);
-        if (plot.baseline_K != null) setSoilK(plot.baseline_K);
-        showToast(`Linked to ${plot.plot_name} (${plot.crop_type}) — NPK baselines loaded`, 'info');
+        showToast(`Linked to ${plot.plot_name} (${plot.crop_type})`, 'info');
       }
     }
   };
@@ -135,51 +120,6 @@ export const ParamsCard: React.FC<ParamsCardProps> = ({
         </select>
       </div>
 
-      {/* Precision Soil Test NPK (Optional) */}
-      <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>🧪 Soil Test N-P-K (kg/ha)</span>
-          <span className="badge-optional">{t('optional', 'Optional')}</span>
-        </label>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-          <div>
-            <input
-              type="number"
-              placeholder="N (kg/ha)"
-              min={0}
-              value={soilN}
-              onChange={(e) => setSoilN(e.target.value === '' ? '' : Number(e.target.value))}
-              aria-label="Soil Nitrogen in kg/ha"
-              style={{ fontSize: '0.85rem', padding: '6px 8px' }}
-            />
-          </div>
-          <div>
-            <input
-              type="number"
-              placeholder="P (kg/ha)"
-              min={0}
-              value={soilP}
-              onChange={(e) => setSoilP(e.target.value === '' ? '' : Number(e.target.value))}
-              aria-label="Soil Phosphorus in kg/ha"
-              style={{ fontSize: '0.85rem', padding: '6px 8px' }}
-            />
-          </div>
-          <div>
-            <input
-              type="number"
-              placeholder="K (kg/ha)"
-              min={0}
-              value={soilK}
-              onChange={(e) => setSoilK(e.target.value === '' ? '' : Number(e.target.value))}
-              aria-label="Soil Potassium in kg/ha"
-              style={{ fontSize: '0.85rem', padding: '6px 8px' }}
-            />
-          </div>
-        </div>
-        <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-          Auto-filled from plot baseline or enter laboratory soil report values.
-        </p>
-      </div>
 
       {/* Optional Email for Direct PDF Report */}
       <div className="form-group" style={{ marginBottom: '0.75rem' }}>

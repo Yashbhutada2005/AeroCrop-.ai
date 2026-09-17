@@ -71,13 +71,6 @@ export const DiagnosisDetailModal: React.FC<DiagnosisDetailModalProps> = ({
         organic_treatment: r.is_healthy ? ['Maintain standard compost and balanced organic irrigation.'] : ['Neem oil 1500ppm spray (5ml/L) or Trichoderma viride bio-application.'],
       },
       yield_t_ha: r.predicted_yield_t_ha || 0,
-      fertilizer: {
-        target: { N: 120, P: 60, K: 40 },
-        deficit: { N: 0, P: 0, K: 0 },
-        fertilizers: { Urea: 100, DAP: 50, MOP: 35 },
-        interpretation: 'Standard recommended fertilizer management schedule.',
-        surplus_n_warning: null,
-      },
       weather: {
         district: (r.district || 'Maharashtra').toUpperCase(),
         temperature: 28,
@@ -105,7 +98,6 @@ export const DiagnosisDetailModal: React.FC<DiagnosisDetailModalProps> = ({
       image_url: detail.image_url,
       disease: detail.disease,
       yield_t_ha: detail.yield_t_ha,
-      fertilizer: detail.fertilizer,
       weather: detail.weather,
     };
     printAdvisoryReport(predResult, currentUser, false);
@@ -118,9 +110,9 @@ export const DiagnosisDetailModal: React.FC<DiagnosisDetailModalProps> = ({
 📍 *District*: ${detail.district}${detail.plot_name ? ` (Plot: ${detail.plot_name})` : ''}
 🦠 *Diagnosis*: ${detail.disease.name} (${detail.disease.confidence}% confidence)
 ⚠️ *Severity*: ${detail.disease.severity}
-🌾 *Predicted Yield*: ${detail.yield_t_ha} t/ha (${(detail.yield_t_ha * 4.047).toFixed(1)} q/acre)
-💊 *Chemical*: ${(detail.disease.chemical_treatment || []).slice(0, 2).join(', ') || 'None needed'}
-🌿 *Organic*: ${(detail.disease.organic_treatment || []).slice(0, 2).join(', ') || 'None needed'}
+🌾 *Predicted Yield*: ${(detail.yield_t_ha * 4.047).toFixed(1)} Quintal / Acre
+💊 *Chemical*: ${(detail.disease.chemical_treatment || []).slice(0, 2).join(', ') || 'None needed'} (Est. ${detail.disease.chemical_cost || (detail.disease.is_healthy ? '₹0 / Acre' : '₹550 – ₹900 / Acre')})
+🌿 *Organic*: ${(detail.disease.organic_treatment || []).slice(0, 2).join(', ') || 'None needed'} (Est. ${detail.disease.organic_cost || (detail.disease.is_healthy ? '₹0 / Acre' : '₹200 – ₹450 / Acre')})
 
 Generated via AeroCrop.ai Precision Agriculture Platform`;
 
@@ -224,13 +216,7 @@ Generated via AeroCrop.ai Precision Agriculture Platform`;
               <div className="glass" style={{ padding: '10px 14px', borderRadius: '10px', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Yield Forecast</div>
                 <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-blue, #2563eb)' }}>
-                  {detail.yield_t_ha} t/ha
-                </div>
-              </div>
-              <div className="glass" style={{ padding: '10px 14px', borderRadius: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Yield (q/acre)</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-amber, #d97706)' }}>
-                  {(detail.yield_t_ha * 4.047).toFixed(1)}
+                  {(detail.yield_t_ha * 4.047).toFixed(1)} Quintal / Acre
                 </div>
               </div>
               {detail.weather && (
@@ -259,9 +245,14 @@ Generated via AeroCrop.ai Precision Agriculture Platform`;
             {(!detail.disease.is_healthy || (detail.disease.chemical_treatment && detail.disease.chemical_treatment.length > 0)) && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
                 <div className="glass" style={{ padding: '14px', borderRadius: '10px', borderLeft: '3px solid #ef4444' }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    💊 Chemical Treatment
-                  </h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.88rem', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      💊 Chemical Treatment
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+                      💰 {detail.disease.chemical_cost || (detail.disease.is_healthy ? '₹0 / Acre' : '₹550 – ₹900 / Acre')}
+                    </span>
+                  </div>
                   {detail.disease.chemical_treatment && detail.disease.chemical_treatment.length > 0 ? (
                     <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                       {detail.disease.chemical_treatment.map((chem, i) => (
@@ -274,9 +265,14 @@ Generated via AeroCrop.ai Precision Agriculture Platform`;
                 </div>
 
                 <div className="glass" style={{ padding: '14px', borderRadius: '10px', borderLeft: '3px solid #16a34a' }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem', color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    🌿 Organic / Bio Mitigation
-                  </h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.88rem', color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🌿 Organic / Bio Mitigation
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d', background: 'rgba(22, 163, 74, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+                      🌱 {detail.disease.organic_cost || (detail.disease.is_healthy ? '₹0 / Acre' : '₹200 – ₹450 / Acre')}
+                    </span>
+                  </div>
                   {detail.disease.organic_treatment && detail.disease.organic_treatment.length > 0 ? (
                     <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                       {detail.disease.organic_treatment.map((org, i) => (
@@ -284,45 +280,12 @@ Generated via AeroCrop.ai Precision Agriculture Platform`;
                       ))}
                     </ul>
                   ) : (
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>Standard bio-fertilizer practices.</p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>Standard biological and cultural practices.</p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Prescribed Fertilizer Doses */}
-            {detail.fertilizer && detail.fertilizer.fertilizers && (
-              <div className="glass" style={{ padding: '14px', borderRadius: '10px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                  🧬 Agronomic Fertilizer Dosage Recommendation
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', textAlign: 'center' }}>
-                  <div style={{ padding: '8px', background: 'rgba(59,130,246,0.08)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Urea (46-0-0)</div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1d4ed8' }}>
-                      {detail.fertilizer.fertilizers.Urea} kg/ha
-                    </div>
-                  </div>
-                  <div style={{ padding: '8px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>DAP (18-46-0)</div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#047857' }}>
-                      {detail.fertilizer.fertilizers.DAP} kg/ha
-                    </div>
-                  </div>
-                  <div style={{ padding: '8px', background: 'rgba(245,158,11,0.08)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>MOP (0-0-60)</div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#b45309' }}>
-                      {detail.fertilizer.fertilizers.MOP} kg/ha
-                    </div>
-                  </div>
-                </div>
-                {detail.fertilizer.interpretation && (
-                  <p style={{ margin: '10px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                    💡 {detail.fertilizer.interpretation}
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
