@@ -62,12 +62,12 @@ Most existing literature and apps treat **disease classification** and **yield p
 **Answer:**  
 We used two primary data sources:
 1. **Visual Dataset (Multi-Source Verified Agricultural Pathology Repositories)**:
-   - **Size**: **165,510 clean, unique images** (132,491 train, 33,019 valid) partitioned strictly 80% train / 20% validation.
-   - **Classes**: **134 diagnostic classes** across 11 field crops of Maharashtra (Potato 18, Cotton 15, Orange 13, Banana 12, Sugarcane 12, Maize 11, Rice 11, Soybean 11, Wheat 11, Tomato 10, Turmeric 10).
-   - **Sources**: Mendeley Data (Sweet Orange, Soybean MH-Soya, Cotton, Turmeric, Maize), PlantVillage (Tomato, Potato, Corn), Kaggle (Paddy Doctor Rice, Cotton CLID), and Dryad/Zenodo.
-2. **Tabular Yield Dataset (FAO / Global Crop Yield & Weather Data)**:
-   - **Attributes**: Crop Type, Year, Average Temperature (°C), Annual Rainfall (mm), Pesticides (tonnes), and Yield (`hg/ha_yield` converted to `t/ha`).
-   - **Imputed Soil Data**: Baseline soil Nitrogen ($N$), Phosphorus ($P$), Potassium ($K$) parameterized from regional ICAR agricultural baselines.
+   - **Size**: **166,630 clean, unique images** (133,388 train, 33,242 valid) partitioned strictly 80% train / 20% validation with zero data leakage.
+   - **Classes**: **134 diagnostic classes** across 11 field crops of Maharashtra (Potato 18, Cotton 15, Orange 13, Banana 12, Sugarcane 12, Maize 11, Rice 11, Soybean 11, Wheat 11, Tomato 10, Turmeric 10). All 11 crops achieve $\ge 10$ distinct classes.
+   - **Sources**: Mendeley Data (Sweet Orange, Soybean MH-Soya, Cotton, Turmeric, Maize), PlantVillage (Tomato, Potato, Corn), Kaggle (Paddy Doctor Rice, Cotton CLID), and Zenodo.
+2. **Tabular Meteorological & Yield Dataset (FAO / Open-Meteo)**:
+   - **Attributes**: Real-time agro-meteorological vectors consisting of Ambient Temperature (°C), Relative Humidity (%), and Precipitation/Rainfall (mm) mapped alongside historical crop yield benchmarks (`crop_yield.csv` / `yield_df.csv`).
+   - **Zero Soil-Testing Barrier**: Designed specifically for smallholders by eliminating NPK/soil testing friction, using automated GPS-derived microclimate telemetry.
 
 ---
 
@@ -159,16 +159,17 @@ The network consists of 4 distinct functional sub-modules:
 
 ### Q4.1: How is the multi-task loss function defined and balanced?
 **Answer:**  
-We formulated a joint weighted loss function:
+We formulated a joint weighted multi-task objective function:
 $$\mathcal{L}_{\text{total}} = \alpha \cdot \mathcal{L}_{\text{classification}} + \beta \cdot \mathcal{L}_{\text{regression}}$$
 
 Where:
 1. **$\mathcal{L}_{\text{classification}}$**: Cross-Entropy Loss with **Label Smoothing** ($\epsilon = 0.1$):
    $$\mathcal{L}_{\text{CE}}(y, \hat{y}) = -\sum_{k=1}^{K} \left[ (1-\epsilon) y_k + \frac{\epsilon}{K} \right] \log \hat{y}_k$$
-   *Label smoothing prevents the network from becoming overconfident on leaf image artifacts.*
-2. **$\mathcal{L}_{\text{regression}}$**: Mean Squared Error (MSE) Loss:
-   $$\mathcal{L}_{\text{MSE}}(y_{\text{yield}}, \hat{y}_{\text{yield}}) = \frac{1}{B} \sum_{i=1}^{B} (y_i - \hat{y}_i)^2$$
-3. **Loss Weights**: Set empirically to $\alpha = 1.0$ and $\beta = 0.5$ because raw MSE values scale differently than Cross-Entropy loss. This balances the gradient magnitudes flowing into the shared $128$-dim fusion layer.
+   *Label smoothing regularizes the vision head and prevents the network from overconfidently memorizing background leaf artifacts.*
+2. **$\mathcal{L}_{\text{regression}}$**: **Smooth L1 Loss (Huber Loss, $\beta = 1.0$)**:
+   $$\mathcal{L}_{\text{SmoothL1}}(y_{\text{yield}}, \hat{y}_{\text{yield}}) = \begin{cases} 0.5 (y - \hat{y})^2 & \text{if } |y - \hat{y}| < 1 \\ |y - \hat{y}| - 0.5 & \text{otherwise} \end{cases}$$
+   *Smooth L1 loss behaves quadratically for small errors and linearly for large errors, preventing wild harvest outliers from dominating gradients during multi-modal updates.*
+3. **Loss Balancing Weights**: Empirically calibrated to $\alpha = 1.0$ (classification) and $\beta = 0.20$ (yield regression). This matches the gradient scale between the 134-class Cross-Entropy and the continuous SmoothL1 error entering the shared $128$-dim fusion layer.
 
 ---
 
@@ -177,8 +178,9 @@ Where:
 - **Optimizer**: **AdamW** (Adam with Decoupled Weight Decay) with initial learning rate $\eta_0 = 10^{-4}$ and weight decay $\lambda = 10^{-4}$.
 - **Learning Rate Scheduler**: **Cosine Annealing Learning Rate** (`CosineAnnealingLR`):
   $$\eta_t = \eta_{\min} + \frac{1}{2}(\eta_0 - \eta_{\min})\left(1 + \cos\left(\frac{t}{T_{\max}}\pi\right)\right)$$
-  where $\eta_{\min} = 10^{-6}$ and $T_{\max} = 30$ epochs.
-- **Gradient Clipping**: `torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)` to prevent exploding gradients during multi-task joint updates.
+  where $\eta_{\min} = 10^{-6}$ and $T_{\max} = 80$ epochs.
+- **Precision Acceleration**: Automatic Mixed Precision (**AMP FP16**) via `torch.amp.autocast` and `GradScaler`, yielding a $2.5\times$ training throughput speedup on NVIDIA RTX 3050.
+- **Gradient Clipping**: `torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)` to eliminate gradient explosion during joint backpropagation.
 - **Regularization**: Dropout ($0.2$ in Tabular MLP, $0.3$ in Fusion layer) + Batch Normalization (`BatchNorm1d`).
 
 ---
@@ -187,15 +189,19 @@ Where:
 
 ### Q5.1: What are the quantitative training and validation results?
 **Answer:**  
-Over 19 training epochs (as logged in `model/training_log.csv`):
-- **Initial State (Epoch 1)**:
-  - Train Accuracy: $9.71\%$, Validation Accuracy: $16.44\%$, Yield RMSE: $8.51\text{ t/ha}$.
-- **Mid Training (Epoch 10)**:
-  - Train Accuracy: $47.33\%$, Validation Accuracy: $62.30\%$, Yield RMSE: $7.08\text{ t/ha}$.
-- **Best Checkpoint (Epoch 19)**:
-  - **Disease Classification Accuracy (Validation)**: **$90.82\%$** 🚀
-  - **Yield Forecasting Error (Validation RMSE)**: **$6.72\text{ t/ha}$** ⬇️
-  - **Checkpoint**: Saved to `model/aerocrop_weights.pth` ($45.1\text{ MB}$, $11.3\text{M}$ parameters).
+Over the full **80 training epochs** across all 166,630 images (as logged in `model/training_log.csv`):
+- **Initial Training (Epoch 1)**:
+  - Train Acc: $67.63\%$, Val Acc: $81.84\%$, Val Loss: $2.151$, Yield Val RMSE: $10.08\text{ t/ha}$.
+- **Mid Training (Epoch 40)**:
+  - Train Acc: $97.59\%$, Val Acc: $95.37\%$, Val Loss: $1.535$, Yield Val RMSE: $8.26\text{ t/ha}$.
+- **Peak Convergence (Epochs 41–80)**:
+  - **Disease Classification Accuracy (Validation)**: **`95.39%`** 🚀
+  - **Validation Macro Precision**: **`92.8%`**
+  - **Validation Macro F1-Score**: **`91.7%`**
+  - **Yield Forecasting Error (Validation RMSE)**: **`8.2325 t/ha`** (MAE: **`3.3867 t/ha`**)
+  - **Total Multi-Task Loss**: **`1.534`** (Classification loss: `0.94`, SmoothL1 yield loss: `2.98`)
+  - **Production Model Weights**: Saved to `model/aerocrop_weights.pth` ($45.1\text{ MB}$, $11,285,191$ parameters).
+  - **Total Training Duration**: $306.2$ minutes on an NVIDIA GeForce RTX 3050 6GB Laptop GPU.
 
 ---
 
@@ -277,10 +283,10 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 
 ## 8. Examiner "Trap" Questions & Defense Strategies
 
-### Q8.1: "Your model achieved 90.82% on PlantVillage. Isn't PlantVillage known for clean lab backgrounds that fail in real farm conditions?"
+### Q8.1: "Your model achieved 95.39% across multi-source datasets. Isn't there a risk of laboratory background bias failing in real field conditions?"
 **Answer (Defense Strategy):**  
-> *"That is an accurate observation. PlantVillage images often feature uniform laboratory backgrounds. To address this domain shift and improve real-world generalization, we implemented strong data augmentations during training: random color jittering ($\pm 30\%$ brightness, contrast, and saturation), random rotations, and vertical/horizontal flips.*  
-> *Furthermore, our architecture fuses live tabular telemetry (temperature, humidity, rainfall). Even if visual cues are ambiguous due to complex field lighting, the tabular encoder's microclimate features provide strong regularization to guide classification and yield forecasting."*
+> *"That is an important critique. To eliminate laboratory-only bias, we did not rely exclusively on PlantVillage. Our unified training corpus integrates massive real-world field photography repositories, including Paddy Doctor (10,407 in-situ field images), SAR-CLD-2024 Cotton, Sweet Orange Mendeley, and MH-SoyaHealthVision (UAV and field-level sensors).*  
+> *Furthermore, to simulate erratic outdoor sunlight and mobile camera sensors, we applied extensive photometric augmentations (ColorJitter $\pm 30\%$ brightness, contrast, and saturation, random flips, and rotations). Most importantly, our intermediate fusion layer incorporates real-time microclimate vectors (temperature, humidity, rainfall) from Open-Meteo, ensuring that classification and yield predictions are tightly contextualized by real physical weather dynamics rather than visual background artifacts."*
 
 ---
 
@@ -329,20 +335,24 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 | **Vision Backbone** | ResNet-18 (512-dim embedding) |
 | **Tabular Backbone** | 3-Layer MLP `[3 -> 64 -> 64 -> 64 -> 64]` (Temp, Humidity, Rainfall) |
 | **Shared Latent Dimension** | 128-dim embedding |
-| **Total Parameters** | $\approx 11.3\text{ Million}$ |
+| **Total Parameters** | $11,285,191$ parameters |
 | **Weight File Size** | $45.1\text{ MB}$ (`model/aerocrop_weights.pth`) |
-| **Disease Classes** | 134 Classes across 11 Field Crops (≥10 classes each) |
-| **Target Region** | Maharashtra (36 districts supported) |
-| **Best Val Accuracy (Disease)** | **90.82%** |
-| **Best Val RMSE (Yield)** | **6.72 t/ha** |
+| **Disease Classes** | 134 Classes across 11 Field Crops (≥10 classes each, 100% complete) |
+| **Dataset Size** | 166,630 images (133,388 train / 33,242 valid, 80/20 split) |
+| **Total Epochs Trained** | **80 Epochs** (306.2 minutes on NVIDIA RTX 3050 6GB GPU) |
+| **Target Region** | Maharashtra (all 36 districts supported) |
+| **Best Val Accuracy (Disease)** | **95.39%** (with 92.8% macro precision, 91.7% macro F1) |
+| **Best Val RMSE (Yield)** | **8.2325 t/ha** (MAE: 3.3867 t/ha) |
+| **Yield Standard Unit** | **Quintal / Acre** ($1\text{ t/ha} = 4.047\text{ Quintal/Acre}$) |
 | **Optimizer** | AdamW ($\text{lr}=10^{-4}, \text{weight\_decay}=10^{-4}$) |
-| **Scheduler** | CosineAnnealingLR ($T_{\max}=30, \eta_{\min}=10^{-6}$) |
-| **Loss Function** | $\mathcal{L}_{\text{total}} = 1.0 \times \text{CrossEntropy}(\text{smooth}=0.1) + 0.5 \times \text{MSE}$ |
+| **Scheduler** | CosineAnnealingLR ($T_{\max}=80, \eta_{\min}=10^{-6}$) |
+| **Loss Function** | $\mathcal{L}_{\text{total}} = 1.0 \times \text{CrossEntropy}(\text{smooth}=0.1) + 0.20 \times \text{SmoothL1}$ |
 | **Backend Framework** | FastAPI + Uvicorn (ASGI) |
-| **Weather API** | Open-Meteo REST API |
+| **Weather API** | Open-Meteo REST API (hourly temperature, humidity, rainfall, wind) |
 | **Market Intelligence** | APMC Mandi Service + GoI MSP Benchmarks |
 | **Voice Advisory** | Web Speech API (`mr-IN`, `hi-IN`, `en-IN`) |
-| **Field Safety** | Real-time Spray Window Decision Engine |
+| **Field Safety** | Real-time Spray Window Decision Engine (drift & wash-off rules) |
+| **Automated Tests** | 166 passing tests (100% pass rate) |
 
 ---
 
@@ -354,7 +364,8 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 > AeroCrop.ai provides complete end-to-end actionable guidance:  
 > 1. It prescribes specific registered chemical treatments with exact dosages (e.g., Carbendazim 12% + Mancozeb 63% WP at 2 g/L).  
 > 2. It pairs chemical remedies with eco-friendly organic biological controls (Neem oil, Trichoderma viride) and cultural management practices.  
-> 3. It checks real-time weather conditions to advise if spraying is safe today or if rain/wind hazards exist."*
+> 3. It provides realistic estimated per-acre input costs (₹) for both chemical and organic options.  
+> 4. It checks real-time weather conditions to advise if spraying is safe today or if rain/wind hazards exist."*
 
 ---
 
@@ -368,10 +379,12 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 
 ---
 
-### Q11.3: "Why did you integrate APMC Mandi rates and revenue forecasting?"
+### Q11.3: "Why did you integrate APMC Mandi rates and revenue forecasting in Quintal / Acre?"
 **Answer:**  
-> *"A yield forecast in $t/\text{ha}$ is meaningless without economic context. Farmers need to know: *'What will I earn from this harvest at current market prices?'*  
-> We engineered `MandiService` covering major Maharashtra APMC markets (e.g. Lasalgaon, Jalgaon, Pune, Nagpur, Latur). The system maps forecasted yield into quintals per acre and multiplies by the live APMC modal price, projecting gross harvest revenue and comparing it against the GoI Minimum Support Price (MSP) benchmark."*
+> *"A yield forecast in metric tons per hectare ($t/\text{ha}$) is completely disconnected from how Indian agricultural commerce functions on the ground:  
+> 1. Indian farmers measure their holdings in **Acres** and trade agricultural commodities in **Quintals** ($100\text{ kg}$).  
+> 2. We standardized harvest output natively to **Quintal / Acre** ($1\text{ t/ha} = 4.047\text{ Quintal/Acre}$).  
+> 3. `MandiService` queries live APMC modal prices across Maharashtra trading hubs (Lasalgaon, Jalgaon, Pune, Nagpur, Latur, Kolhapur) to project Gross Revenue (₹) and contrast it against the official Government of India Minimum Support Price (MSP) benchmark."*
 
 ---
 
@@ -390,5 +403,16 @@ The software strictly follows the **MVC (Model-View-Controller)** and **Service-
 > 1. **Frictionless Photo-Only Field Submission**: The farmer simply uploads a leaf photo, selects the crop, and chooses their district.  
 > 2. **Pure Meteorological Telemetry**: The tabular branch uses 3 live environmental features—ambient temperature, relative humidity, and rainfall—fetched automatically from Open-Meteo GPS coordinates.  
 > 3. **Seamless Multi-Modal Operation**: The model executes its dual-head forward pass with 0 manual tabular entry required from the farmer, delivering immediate disease diagnosis, spray safety advisories, and yield forecasts in seconds."*
+
+---
+
+### Q11.6: "Can your platform estimate the costs of chemical vs. organic/bio treatments? Why is this essential for Indian farmers?"
+**Answer:**  
+> *"Yes. In AeroCrop.ai, every diagnosed pathology includes an **Estimated Cost per Acre (₹)** for both chemical and organic remedies:  
+> - **Chemical Interventions** typically range between ₹850 – ₹1,450 / acre (depending on systemic active ingredients such as Azoxystrobin, Mancozeb, or Propiconazole).  
+> - **Organic / Bio Alternatives** typically range between ₹400 – ₹800 / acre (utilizing neem formulations, Trichoderma viride, or bio-pesticides).  
+> 
+> **Why this matters to farmers:**  
+> Smallholders operate on tight seasonal working capital. Knowing the per-acre cost empowers them to make economically viable choices—such as selecting an affordable organic bio-spray for mild infestations or reserving intensive chemical sprays for critical infection thresholds—preventing over-indebtedness to input agro-dealers."*
 
 

@@ -58,7 +58,7 @@ export function printAdvisoryReport(
     <div class="row" style="margin-bottom:0">
       <div class="cell"><strong>District:</strong> ${district.toUpperCase()}</div>
       <div class="cell"><strong>Cultivated Crop:</strong> ${crop.toUpperCase()}</div>
-      <div class="cell"><strong>Diagnostic Engine:</strong> ${mock_mode ? 'Smart Mock Agronomics' : 'Multi-Modal ResNet-18 (90.82%)'}</div>
+      <div class="cell"><strong>Diagnostic Engine:</strong> ${mock_mode ? 'Smart Mock Agronomics' : 'Multi-Modal ResNet-18 (95.39%)'}</div>
     </div>
     ${image_url ? `<div style="margin-top:8px"><img src="${image_url}" style="max-height:140px;border-radius:4px;border:1px solid #cbd5e1" alt="Specimen" /></div>` : ''}
   </div>

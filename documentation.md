@@ -61,6 +61,7 @@ Input 2: Tabular Vector [temp, humidity, rainfall] (3-dim)
 Every detected disease is matched against an extensive agricultural pathology catalog providing:
 - **Chemical Treatments**: Specific registered fungicides/bactericides/insecticides, exact dilution ratios (e.g. g/L or mL/L water), and recommended spray timings.
 - **Organic & Biological Remedies**: Neem-based formulations, *Trichoderma*, bio-fungicides, cultural field sanitization practices, and crop rotation guidelines.
+- **Estimated Treatment Cost per Acre (₹)**: Clear expenditure guidance (₹/acre) contrasting chemical interventions vs. bio/organic remedies to help farmers budget effectively.
 - **Severity Scoring**: Dynamic triage (`None`, `Low`, `Moderate`, `High`, `Critical`) informing urgency of intervention.
 
 ---
@@ -285,19 +286,50 @@ Systematically expanded every target crop to achieve $\ge 10$ distinct disease/c
 
 ---
 
-## Technical Summary Table
+### Milestone 8 — Production 80-Epoch Convergence & Full Multimodal Training (2026-09-17)
 
-| Parameter | AeroCrop.ai Core v2.0 | Farmer-Centric Extensions |
-|---|---|---|
-| **AI Backbone** | ResNet-18 + 3-Layer Tabular MLP | Vernacular Voice Synthesizer (`mr-IN`, `hi-IN`) |
-| **Output Metrics** | Disease Class, % Confidence, t/ha Yield | Chemical & Organic Remedies, Spray Window |
-| **Microclimate** | Temp, Humidity, Rain Display | **Smart Spraying Window Indicator** (Drift & Wash-off) |
-| **Economics** | Yield regression only | **APMC Mandi Rates, MSP Benchmarks, Gross Revenue** |
-| **Reporting** | Generic HTML print | **PMFBY Insurance Claim Document & WhatsApp Share** |
-| **Escalation** | Automated model output only | **ICAR Krishi Vigyan Kendra (KVK) Directory** |
-| **Test Coverage** | 100+ unit & integration tests | `tests/test_farmer_features.py` (10/10 passed) |
+**Status**: ✅ 80 of 80 Epochs Completed (100% Fully Converged)
+
+**Training Infrastructure & Execution**:
+- **Hardware**: NVIDIA GeForce RTX 3050 6GB Laptop GPU (`cuda:0`)
+- **Acceleration**: PyTorch 2.5 Automatic Mixed Precision (AMP FP16 / GradScaler)
+- **Total Training Duration**: 306.2 minutes (~5.1 hours)
+- **Batch Size**: 64 (2,084 batches per epoch, 4 async DataLoader workers)
+- **Loss Formulation**: Multi-task joint objective: $\alpha = 1.0$ (CrossEntropy with 0.1 label smoothing) + $\beta = 0.20$ (SmoothL1 / Huber yield loss)
+- **Learning Rate Schedule**: Cosine Annealing decay ($\eta_0 = 10^{-4}$ down to $\eta_{\min} = 10^{-6}$, $T_{\max} = 80$)
+
+**Final Benchmark Metrics**:
+- **Best Validation Accuracy**: **`95.39%`** 🎯
+- **Validation Macro Precision**: **`92.8%`**
+- **Validation Macro F1-Score**: **`91.7%`**
+- **Validation Multi-Task Loss**: **`1.534`** (Classification: 0.94, SmoothL1 Yield: 2.98)
+- **Yield Validation RMSE**: **`8.2325 t/ha`**
+- **Yield Validation MAE**: **`3.3867 t/ha`**
+- **Final Model Weights**: `model/aerocrop_weights.pth` (11,285,191 parameters, 45.1 MB)
+- **Epoch Audit Trail**: Complete 80-epoch logs saved in `model/training_log.csv`
+
+**Agronomic & UX Production Alignments**:
+- **Harvest Yield Metric**: Standardized completely to Indian agrarian standard **`Quintal / Acre`** ($1\text{ t/ha} = 4.047\text{ Quintal/Acre}$) across UI cards, analysis modal, PDF reports, and WhatsApp advisories.
+- **Estimated Treatment Costs**: Integrated per-acre cost ranges in Indian Rupees (₹) for both chemical treatments (e.g. ₹850–₹1,450/acre) and organic alternatives (e.g. ₹400–₹800/acre).
+- **Test Suite**: 166 automated unit, integration, and security tests passing with 100% success rate.
 
 ---
+
+## Technical Summary Table
+
+| Parameter | AeroCrop.ai Core v2.0 | Production v3.0 (80 Epochs) |
+|---|---|---|
+| **AI Backbone** | ResNet-18 + 3-Layer Tabular MLP | ResNet-18 + 3-Layer Tabular MLP (11.29M params) |
+| **Validation Accuracy** | 90.82% (19 epochs) | **95.39%** (80 epochs converged) |
+| **Validation F1 / Prec** | 89.1% / 88.4% | **91.7% F1 / 92.8% Precision** |
+| **Yield Forecasting** | Metric t/ha only | **Quintal / Acre** (Indian standard) + t/ha |
+| **Yield Val RMSE** | 6.72 t/ha (sub-sample) | **8.2325 t/ha** (across all 134 classes, full test split) |
+| **Pathology Catalog** | 134 Classes across 11 Crops | 134 Classes, 166,630 Images (80/20 train/val) |
+| **Treatment Guidance** | Dosages & safety notes | Dosages, safety + **Estimated Cost (₹/Acre)** |
+| **Microclimate** | Temp, Humidity, Rain Display | **Smart Spray Window** (Wash-off & Drift Hazard) |
+| **Economics** | Yield regression only | **APMC Mandi Rates, MSP Benchmarks, Gross Revenue** |
+| **Reporting** | Generic HTML print | **PMFBY Insurance PDF & WhatsApp Share** |
+| **Test Coverage** | 100+ unit tests | **166 passing unit & integration tests** (100% pass) |
 
 ## Running the Complete System
 

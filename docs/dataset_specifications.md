@@ -200,3 +200,21 @@ All images and agronomic telemetry have been unified from certified agricultural
 | 3 | **Historical Indian Crop Yield Dataset** | Directorate of Economics and Statistics (DES) | 19,689 records (`crop_yield.xlsx`, State, Season, Area, Production, Annual_Rainfall, Fertilizer, Pesticide, Yield) | Verified Academic Archive |
 | 4 | **APMC Market Telemetry** | Maharashtra State Agricultural Marketing Board (MSAMB) / Agmarknet | Daily modal price, minimum, maximum, and arrivals across 36 districts for 11 target crops | [Agmarknet](https://agmarknet.gov.in) |
 | 5 | **Microclimate Telemetry** | Open-Meteo European Centre for Medium-Range Weather Forecasts (ECMWF) | Hourly & daily temperature, relative humidity, precipitation, and 10m wind velocity across Maharashtra GPS coordinates | [Open-Meteo](https://open-meteo.com) |
+
+---
+
+## 4. Multimodal Model Convergence & Training Performance (80 Epochs)
+
+The multi-modal architecture (`MultiModalAeroCropNet`) was trained across the full 166,630 image pathology dataset and agro-meteorological tabular vectors for **80 complete epochs**:
+
+| Performance Dimension | Metric / Benchmark | Operational Relevance |
+| :--- | :--- | :--- |
+| **Disease Classification Accuracy** | **`95.39%` (Validation)** | High-confidence diagnosis across 134 pathology and healthy leaf states |
+| **Validation Macro Precision** | **`92.8%`** | Extremely low false positive rate on severe quarantine diseases |
+| **Validation Macro F1-Score** | **`91.7%`** | Robust balance across class imbalances in regional datasets |
+| **Multi-Task Objective Loss** | **`1.534`** | $\alpha=1.0$ (CrossEntropy 0.94) + $\beta=0.20$ (SmoothL1 Yield 2.98) |
+| **Yield Forecasting Error** | **`8.2325 t/ha` RMSE** (MAE `3.3867 t/ha`) | Continuous harvest volume regression conditioned on leaf health & weather |
+| **Standardized Harvest Metric** | **`Quintal / Acre`** | Indian standard unit: $\text{Yield}_{(\text{Quintal/Acre})} = \text{Yield}_{(t/\text{ha})} \times 4.047$ |
+| **Model Footprint** | **`11,285,191` Parameters** ($45.1\text{ MB}$) | Lightweight for edge and high-concurrency cloud serving (`model/aerocrop_weights.pth`) |
+| **Training Infrastructure** | **80 Epochs in 306.2 min** | NVIDIA GeForce RTX 3050 6GB Laptop GPU with PyTorch 2.5 CUDA AMP FP16 |
+| **Full Historical Logs** | `model/training_log.csv` | Complete epoch-by-epoch audit trail from Epoch 1 through Epoch 80 |

@@ -56,7 +56,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onQuickDiagnose })
             <p className="stat-value">
               {isAuthenticated && analytics && analytics.total_diagnoses > 0
                 ? `${analytics.health_rate_percent}%`
-                : '90.82%'}
+                : '95.39%'}
             </p>
             <p className="stat-label">
               {isAuthenticated && analytics && analytics.total_diagnoses > 0

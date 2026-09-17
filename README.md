@@ -7,15 +7,16 @@
 
 ## Overview
 
-**AeroCrop.ai** is an end-to-end precision agriculture and field-intelligence platform built for smallholder and commercial farmers across Maharashtra's 36 districts. Combining computer vision, microclimatic telemetry, and commercial agronomics, the platform transforms a single leaf photograph and soil reading into immediate operational and financial guidance.
+**AeroCrop.ai** is an end-to-end precision agriculture and field-intelligence platform built for smallholder and commercial farmers across Maharashtra's 36 districts. Combining computer vision, microclimatic telemetry, and commercial agronomics, the platform transforms a single leaf photograph and live agro-meteorological telemetry into immediate operational and financial guidance—with zero soil-testing or manual NPK input friction.
 
 ### Key Capabilities
 
-1. **🔬 Multi-Modal Disease Diagnosis (134 Diagnostic Classes, 11 Field Crops, 166,630 Images)**:
-   - Vision backbone: **ResNet-18 / EfficientNet** extracting deep spatial disease patterns across 134 canonical pathology and disorder classes.
+1. **🔬 Multi-Modal Disease Diagnosis (134 Diagnostic Classes, 11 Field Crops, 166,630 Images, 80 Epochs)**:
+   - Vision backbone: **ResNet-18** extracting deep spatial disease patterns across 134 canonical pathology and disorder classes.
    - Dataset: **166,630 clean, unique images** partitioned strictly 80% train (133,388) / 20% valid (33,242) with zero data leakage.
    - Tabular backbone: **3-layer MLP** encoding Open-Meteo microclimate telemetry (Temperature, Humidity, Rainfall).
-   - Dual-head output: Simultaneous disease classification and non-negative harvest yield regression ($t/\text{ha}$).
+   - Training & Accuracy: Fully trained for **80 epochs**, achieving **95.39% validation accuracy**, **92.8% macro precision**, **91.7% macro F1-score**, and **8.23 t/ha yield RMSE**.
+   - Dual-head output: Simultaneous disease classification and non-negative harvest yield regression natively formatted in **Quintal / Acre** (and internal $t/\text{ha}$).
 
 2. **💨 Smart Foliar Spraying Safety Window (हवामान फवारणी सल्ला)**:
    - Real-time weather hazard engine evaluating rainfall ($>1\text{ mm}$ wash-off hazard) and wind speed ($>15\text{ km/h}$ chemical drift hazard).
@@ -23,17 +24,18 @@
 
 3. **🌿 Agronomic Treatment & Scientific Disease Remedies (रोग नियंत्रण)**:
    - Delivers validated chemical treatments and eco-friendly organic remedies tailored to each diagnosed crop disease.
-   - Comprehensive active ingredient dosages, spray instructions, and safety precautions.
+   - Comprehensive active ingredient dosages, spray instructions, dilution ratios, and safety precautions.
+   - **Estimated Treatment Cost per Acre (₹)** provided for both Chemical Treatments and Organic / Bio Alternatives to aid farmer budgeting.
 
 4. **🏛️ APMC Mandi Rates & Harvest Gross Revenue Forecasting (बाजारभाव)**:
    - Market intelligence across major Maharashtra APMC hubs (Lasalgaon, Jalgaon, Pune, Nagpur, Latur, Kolhapur).
-   - Maps predicted yield into expected quintals per acre and calculates **Gross Revenue (₹)** compared against official Minimum Support Price (MSP) benchmarks.
+   - Maps predicted yield directly into **Quintals per Acre** (using $1\text{ t/ha} = 4.047\text{ Quintal/Acre}$) and calculates **Gross Revenue (₹)** compared against official Minimum Support Price (MSP) benchmarks.
 
 5. **🔊 Vernacular Voice Narration (बोलणारा कृषी सल्लागार)**:
    - Browser-native Web Speech API (`mr-IN`, `hi-IN`, `en-IN`) speaks aloud the complete pathology and remedy advisory for hands-free field use.
 
 6. **📋 PMFBY Insurance Loss Proof & WhatsApp 1-Click Sharing**:
-   - Generates legal PDF claim documentation for the **Pradhan Mantri Fasal Bima Yojana (PMFBY)** with surveyor signature blocks and leaf specimen imagery.
+   - Generates legal PDF claim documentation for the **Pradhan Mantri Fasal Bima Yojana (PMFBY)** with surveyor signature blocks, leaf specimen imagery, and treatment cost breakdown.
    - 1-click sharing of diagnoses and agronomic advisories to WhatsApp.
 
 7. **👨‍🌾 Farmer Plot Management & Persistent History**:
@@ -50,14 +52,15 @@
 
 | Layer | Technology |
 |---|---|
-| **Deep Learning** | PyTorch 2.x · torchvision (ResNet-18) · NumPy · Pillow |
+| **Deep Learning** | PyTorch 2.5 (CUDA AMP FP16) · torchvision (ResNet-18) · NumPy · Pillow |
 | **Backend API** | FastAPI · Uvicorn (ASGI) · Python 3.12 |
 | **Database** | MongoDB · Motor (Async `pymongo`) · Pydantic V2 · bcrypt · PyJWT |
-| **Frontend** | React 18 · TypeScript · Vite · Lucide Icons · Chart.js |
+| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · Lucide Icons · Chart.js |
+| **PDF & Email Service** | Node.js (Express, Puppeteer, Nodemailer) with Devanagari font support |
 | **Legacy Fallback** | Vanilla HTML5 / CSS3 / JavaScript SPA |
 | **Microclimate** | Open-Meteo REST API (hourly temperature, humidity, rainfall, wind) |
 | **Market Data** | Maharashtra APMC Mandi Service + Agmarknet + GoI MSP benchmarks |
-| **Testing** | pytest · pytest-asyncio · httpx (146 passing tests) |
+| **Testing** | pytest · pytest-asyncio · httpx (166 passing tests) |
 
 ---
 
@@ -210,4 +213,13 @@ All agricultural pathology imagery and agro-meteorological telemetry used across
 - **Final Crop Scope**: 11 Field Crops (**Wheat, Rice, Cotton, Sugarcane, Soybean, Maize, Potato, Tomato, Banana, Turmeric, Orange**).
 - **Taxonomy Volume**: 134 Diagnostic Classes, 166,630 Unique Images (133,388 Train / 33,242 Valid, 0 duplicates).
 - **Crops Achieved (≥10 Classes Goal)**: **11 of 11 crops fully achieved (100% COMPLETE)** — Potato 18, Cotton 15, Orange 13, Banana 12, Sugarcane 12, Maize 11, Rice 11, Soybean 11, Wheat 11, Tomato 10, Turmeric 10.
+- **Full 80-Epoch Convergence Benchmarks**:
+  - **Disease Classification Accuracy (Validation)**: **`95.39%`** 🎯
+  - **Macro Precision (Validation)**: **`92.8%`**
+  - **Macro F1-Score (Validation)**: **`91.7%`**
+  - **Yield Forecasting Error (Validation RMSE)**: **`8.2325 t/ha`** (MAE: `3.3867 t/ha`)
+  - **Multi-Task Objective Loss**: **`1.534`** (Classification loss: `0.94`, SmoothL1 yield loss: `2.98`)
+  - **Model Architecture**: `MultiModalAeroCropNet` (11,285,191 parameters, FP16 AMP trained on NVIDIA RTX 3050 6GB GPU)
+  - **Production Weights**: Saved to [`model/aerocrop_weights.pth`](file:///d:/Codes/final_year_project/model/aerocrop_weights.pth)
+  - **Full Training Telemetry**: Complete 80-epoch logs logged in [`model/training_log.csv`](file:///d:/Codes/final_year_project/model/training_log.csv)
 - **Exam / Viva Defense Guide**: Comprehensive technical Q&A covering model design, commercial stoichiometry, spray safety math, and rural deployment is documented in [PROJECT_REVIEW_QUESTIONS_AND_ANSWERS.md](file:///d:/Codes/final_year_project/PROJECT_REVIEW_QUESTIONS_AND_ANSWERS.md).

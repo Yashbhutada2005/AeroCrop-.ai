@@ -59,13 +59,21 @@
 /* ── Reset & Base ─────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; font-size: 16px; }
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
 
 body {
   font-family:     var(--font-body);
   background:      var(--bg-base);
   color:           var(--text-primary);
   min-height:      100vh;
+  width:           100%;
+  max-width:       100%;
   overflow-x:      hidden;
   -webkit-font-smoothing: antialiased;
   background-image: 
@@ -74,6 +82,11 @@ body {
     radial-gradient(at 50% 80%, rgba(254, 215, 170, 0.35) 0px, transparent 50%),
     radial-gradient(at 90% 85%, rgba(233, 216, 253, 0.4) 0px, transparent 50%);
   background-attachment: fixed;
+}
+
+img, video, canvas, svg, iframe, embed, object {
+  max-width: 100%;
+  height: auto;
 }
 
 /* ── Animated Background Orbs ─────────────────────────────────────────────── */
@@ -127,6 +140,11 @@ body {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  box-sizing: border-box;
   position: relative;
   z-index: 1;
 }
@@ -246,14 +264,22 @@ body {
 /* ── Main Content ─────────────────────────────────────────────────────────── */
 .main-content {
   flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: calc(100% - var(--sidebar-w));
   padding: 32px;
   min-height: 100vh;
   overflow-y: auto;
-  max-width: calc(100vw - var(--sidebar-w));
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* ── Pages ────────────────────────────────────────────────────────────────── */
 .page-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   animation: fade-in var(--t-slow) var(--ease);
 }
 

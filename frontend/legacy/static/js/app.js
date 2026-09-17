@@ -1161,7 +1161,7 @@ window.printReport = function(isPmfby = false) {
   <div class="row">
     <div class="cell"><strong>Crop:</strong> ${d.crop}</div>
     <div class="cell"><strong>District:</strong> ${d.district}</div>
-    <div class="cell"><strong>Mode:</strong> ${d.mock_mode ? 'Smart Mock' : 'Neural Model (90.82% acc)'}</div>
+    <div class="cell"><strong>Mode:</strong> ${d.mock_mode ? 'Smart Mock' : 'Neural Model (95.39% acc)'}</div>
   </div>
 
   <h2>🦠 Disease Diagnosis</h2>
