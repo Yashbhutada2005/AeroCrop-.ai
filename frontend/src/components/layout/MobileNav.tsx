@@ -15,12 +15,36 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
   const { currentUser, isAuthenticated, openAuthModal } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const navItems: { id: PageTab; labelKey: string; icon: string }[] = [
-    { id: 'diagnose', labelKey: 'nav_diagnose', icon: '🔬' },
-    { id: 'crops', labelKey: 'nav_my_crops', icon: '🌱' },
-    { id: 'dashboard', labelKey: 'nav_dashboard', icon: '📊' },
-    { id: 'diseases', labelKey: 'nav_diseases', icon: '🦠' },
-    { id: 'about', labelKey: 'nav_about', icon: 'ℹ️' },
+  const mobileLabels: Record<Language, Record<PageTab, string>> = {
+    en: {
+      diagnose: 'Diagnose',
+      crops: 'Plots',
+      dashboard: 'Dashboard',
+      diseases: 'Diseases',
+      about: 'About',
+    },
+    mr: {
+      diagnose: 'निदान',
+      crops: 'प्लॉट्स',
+      dashboard: 'डॅशबोर्ड',
+      diseases: 'रोग',
+      about: 'माहिती',
+    },
+    hi: {
+      diagnose: 'निदान',
+      crops: 'खेत',
+      dashboard: 'डैशबोर्ड',
+      diseases: 'रोग',
+      about: 'जानकारी',
+    },
+  };
+
+  const navItems: { id: PageTab; icon: string }[] = [
+    { id: 'diagnose', icon: '🔬' },
+    { id: 'crops', icon: '🌱' },
+    { id: 'dashboard', icon: '📊' },
+    { id: 'diseases', icon: '🦠' },
+    { id: 'about', icon: 'ℹ️' },
   ];
 
   return (
@@ -81,6 +105,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
       <nav className="mobile-bottom-nav glass" role="navigation" aria-label="Mobile Bottom Navigation">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
+          const label = mobileLabels[language]?.[item.id] || mobileLabels.en[item.id];
           return (
             <button
               key={item.id}
@@ -92,7 +117,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
               aria-current={isActive ? 'page' : undefined}
             >
               <span className="mobile-item-icon" aria-hidden="true">{item.icon}</span>
-              <span className="mobile-item-label">{t(item.labelKey)}</span>
+              <span className="mobile-item-label">{label}</span>
               {isActive && <span className="mobile-active-indicator" aria-hidden="true" />}
             </button>
           );
