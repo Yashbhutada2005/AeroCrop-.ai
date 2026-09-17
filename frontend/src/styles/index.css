@@ -328,6 +328,10 @@ img, video, canvas, svg, iframe, embed, object {
 .card {
   border-radius: var(--radius-lg);
   padding: 24px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .card-title {
@@ -339,6 +343,7 @@ img, video, canvas, svg, iframe, embed, object {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* ── Weather Strip ────────────────────────────────────────────────────────── */
@@ -348,7 +353,9 @@ img, video, canvas, svg, iframe, embed, object {
   padding: 14px 22px;
   border-radius: var(--radius-lg);
   align-items: center;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  max-width: 100%;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.9);
 }
 
