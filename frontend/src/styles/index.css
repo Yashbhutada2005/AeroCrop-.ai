@@ -557,7 +557,7 @@ img, video, canvas, svg, iframe, embed, object {
 /* ── Metric Cards ─────────────────────────────────────────────────────────── */
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -568,6 +568,8 @@ img, video, canvas, svg, iframe, embed, object {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  min-width: 0;
+  box-sizing: border-box;
   transition: transform var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .metric-card:hover { 
@@ -576,6 +578,11 @@ img, video, canvas, svg, iframe, embed, object {
 }
 
 .metric-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
+
+.metric-body {
+  flex: 1;
+  min-width: 0;
+}
 
 .metric-label { font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; margin-bottom: 4px; }
 
@@ -814,13 +821,17 @@ img, video, canvas, svg, iframe, embed, object {
 
 .disease-db-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 18px;
 }
 
 .disease-db-card {
   border-radius: var(--radius-md);
   padding: 20px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   backdrop-filter: blur(8px);
