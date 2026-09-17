@@ -51,7 +51,9 @@ export const KVKCard: React.FC = () => {
             background: '#fff',
             color: 'var(--text-primary)',
             fontSize: '0.85rem',
-            width: '220px',
+            width: '100%',
+            maxWidth: '240px',
+            boxSizing: 'border-box',
           }}
         />
       </div>
@@ -60,7 +62,7 @@ export const KVKCard: React.FC = () => {
         {t('kvk_subtitle')}
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))', gap: '0.75rem' }}>
         {filtered.map((kvk) => (
           <div
             key={kvk.name}

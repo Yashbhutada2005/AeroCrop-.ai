@@ -67,8 +67,8 @@ export const MandiDashboardCard: React.FC = () => {
       {loading ? (
         <p style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{t('loading_mandi')}</p>
       ) : (
-        <div style={{ overflowX: 'auto', marginTop: '0.75rem' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+        <div style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginTop: '0.75rem', boxSizing: 'border-box' }}>
+          <table style={{ width: '100%', minWidth: '520px', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(140,195,165,0.3)', textAlign: 'left' }}>
                 <th style={{ padding: '0.6rem 0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>{t('commodity_col')}</th>

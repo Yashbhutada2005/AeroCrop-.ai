@@ -102,7 +102,7 @@ export const DiseaseDetailModal: React.FC<DiseaseDetailModalProps> = ({
         </div>
 
         {/* Treatments Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '14px', marginBottom: '20px' }}>
           {/* Chemical Treatment */}
           <div
             className="glass"

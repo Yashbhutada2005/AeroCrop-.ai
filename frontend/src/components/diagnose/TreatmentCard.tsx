@@ -46,7 +46,7 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ disease }) => {
 
   return (
     <div className="card glass treatment-card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '8px' }}>
         <h2 className="card-title" style={{ margin: 0 }}>
           <span aria-hidden="true">💊</span>
           <span>{t('treatment_title')}</span>

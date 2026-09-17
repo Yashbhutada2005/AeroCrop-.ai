@@ -91,7 +91,7 @@ export const PlotCard: React.FC<PlotCardProps> = ({ plot, onQuickDiagnose, onEdi
                   className={`plot-mini-chip ${a.is_healthy ? 'chip-healthy' : 'chip-disease'}`}
                   title={`${a.disease_name} (${a.confidence}% conf, ${(a.predicted_yield_t_ha * 4.047).toFixed(1)} Quintal / Acre)`}
                 >
-                  #{idx + 1} {a.is_healthy ? '✅' : '🦠'} {(a.predicted_yield_t_ha * 4.047).toFixed(1)} Quintal / Acre
+                  #{idx + 1} {a.is_healthy ? '✅' : '🦠'} {(a.predicted_yield_t_ha * 4.047).toFixed(1)} Q/Ac
                 </span>
               ))}
             </div>

@@ -25,11 +25,11 @@ export const MandiCard: React.FC<MandiCardProps> = ({ mandi }) => {
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
         {/* Modal Price */}
         <div className="metric-card glass" style={{ padding: '0.85rem' }}>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('modal_price')}</p>
-          <p style={{ margin: '0.2rem 0', fontSize: '1.4rem', fontWeight: 700, color: '#0369a1' }}>
+          <p style={{ margin: '0.2rem 0', fontSize: '1.4rem', fontWeight: 700, color: '#0369a1', wordBreak: 'break-word' }}>
             ₹{mandi.modal_price_inr.toLocaleString('en-IN')}
           </p>
           <p style={{ margin: 0, fontSize: '0.75rem', color: trendColor }}>
@@ -40,7 +40,7 @@ export const MandiCard: React.FC<MandiCardProps> = ({ mandi }) => {
         {/* Min - Max Range */}
         <div className="metric-card glass" style={{ padding: '0.85rem' }}>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('min_max_price')}</p>
-          <p style={{ margin: '0.2rem 0', fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          <p style={{ margin: '0.2rem 0', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
             ₹{mandi.min_price_inr.toLocaleString('en-IN')} – ₹{mandi.max_price_inr.toLocaleString('en-IN')}
           </p>
           <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -53,7 +53,7 @@ export const MandiCard: React.FC<MandiCardProps> = ({ mandi }) => {
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             {mandi.msp_inr > 0 ? t('msp_col') : t('daily_arrivals')}
           </p>
-          <p style={{ margin: '0.2rem 0', fontSize: '1.1rem', fontWeight: 600, color: mandi.msp_inr > 0 ? '#d97706' : '#7c3aed' }}>
+          <p style={{ margin: '0.2rem 0', fontSize: '1.05rem', fontWeight: 600, color: mandi.msp_inr > 0 ? '#d97706' : '#7c3aed', wordBreak: 'break-word' }}>
             {mandi.msp_inr > 0 ? `₹${mandi.msp_inr.toLocaleString('en-IN')}` : `${mandi.arrivals_quintal} q`}
           </p>
           <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -77,20 +77,20 @@ export const MandiCard: React.FC<MandiCardProps> = ({ mandi }) => {
             gap: '0.75rem',
           }}
         >
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#15803d', fontWeight: 600 }}>
               🌾 {t('projected_revenue')} ({displayName})
             </span>
-            <div style={{ marginTop: '0.2rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              ₹{mandi.revenue_projection.gross_revenue_acre_inr.toLocaleString('en-IN')}{' '}
-              <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-secondary)' }}>/ {t('unit_acre')}</span>
-              {'  '}
-              <span style={{ fontSize: '1rem', color: 'rgba(140, 195, 165, 0.5)' }}>|</span>
-              {'  '}
-              <span style={{ fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
-                ₹{mandi.revenue_projection.gross_revenue_ha_inr.toLocaleString('en-IN')}
-              </span>{' '}
-              <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-secondary)' }}>/ {t('unit_ha')}</span>
+            <div style={{ marginTop: '0.2rem', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px' }}>
+              <span>
+                ₹{mandi.revenue_projection.gross_revenue_acre_inr.toLocaleString('en-IN')}{' '}
+                <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-secondary)' }}>/ {t('unit_acre')}</span>
+              </span>
+              <span style={{ fontSize: '0.9rem', color: 'rgba(140, 195, 165, 0.6)' }}>|</span>
+              <span>
+                ₹{mandi.revenue_projection.gross_revenue_ha_inr.toLocaleString('en-IN')}{' '}
+                <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-secondary)' }}>/ {t('unit_ha')}</span>
+              </span>
             </div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
